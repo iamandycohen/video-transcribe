@@ -6,9 +6,8 @@
 import express from 'express';
 import cors from 'cors';
 import { getVersionInfo } from './version';
-import multer from 'multer';
 import { logger } from './utils/logger';
-import { requireAuth, allowAnonymous } from './middleware/multi-auth';
+import { requireAuth } from './middleware/multi-auth';
 
 // Import stateless actions
 import { UploadVideoStatelessAction } from './actions/upload-video-stateless';
@@ -23,7 +22,6 @@ import {
 } from './actions/text-analysis-stateless';
 
 const app = express();
-const upload = multer({ dest: 'temp/uploads/' });
 
 // Middleware
 app.use(cors());
@@ -109,7 +107,7 @@ app.get('/docs', (req, res) => {
 });
 
 // Error handling middleware
-app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((error: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logger.error('Unhandled error:', error);
   
   res.status(500).json({

@@ -37,7 +37,6 @@ export class UploadVideoStatelessAction {
 
       // Create or use existing workflow
       const workflowId = workflow_id || await this.getStateStore().createWorkflow();
-      const startTime = Date.now();
       
       // Start upload step
       await this.getStateStore().startStep(workflowId, 'upload_video');
@@ -47,7 +46,6 @@ export class UploadVideoStatelessAction {
       const video_reference = `video_${workflowId}_${Date.now()}`;
 
       // Get file info for result
-      const fileExists = await this.getReferenceService().exists(video_url);
       const fileInfo = await this.getReferenceService().getFileInfo(video_url);
       
       // Complete upload step with results

@@ -11,7 +11,6 @@ import { logger } from '../utils/logger';
 import { 
   StepStatus, 
   StepError, 
-  WorkflowStep, 
   WorkflowSteps 
 } from '../workflow-steps';
 import { azureConfig } from '../config/azure-config';

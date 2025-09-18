@@ -142,7 +142,7 @@ Key points:`;
     return keyPointsText
       .split('\n')
       .filter(line => line.trim())
-      .map(line => line.replace(/^[•\-\*]\s*/, '').trim())
+      .map(line => line.replace(/^[•\-*]\s*/, '').trim())
       .filter(line => line.length > 0);
   }
 

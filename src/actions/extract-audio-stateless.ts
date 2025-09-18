@@ -71,7 +71,6 @@ export class ExtractAudioStatelessAction {
 
       // Get video file from upload step result
       const video_url = uploadResult.video_url;
-      const { stream: videoBuffer } = await this.getReferenceService().getFileStream(video_url);
 
       // Extract audio using temp file
       const tempVideoPath = this.getReferenceService().getFilePathFromUrl(video_url);

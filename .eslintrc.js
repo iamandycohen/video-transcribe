@@ -15,19 +15,19 @@ module.exports = {
     es2020: true,
   },
   rules: {
-    // Temporarily relax rules for existing codebase
-    '@typescript-eslint/no-explicit-any': 'warn',
-    '@typescript-eslint/no-unused-vars': 'warn',
-    'no-unused-vars': 'warn',
+    // Proper rules for clean codebase
+    '@typescript-eslint/no-explicit-any': 'warn', // Keep as warn for now
+    '@typescript-eslint/no-unused-vars': ['error', { 'argsIgnorePattern': '^_' }],
+    'no-unused-vars': 'off', // Let TypeScript handle this
     '@typescript-eslint/explicit-function-return-type': 'off',
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     '@typescript-eslint/no-empty-function': 'warn',
     '@typescript-eslint/no-inferrable-types': 'off',
     'no-console': 'off', // Allow console.log for logging
-    'prefer-const': 'warn',
+    'prefer-const': 'error',
     'no-var': 'error',
     'no-undef': 'off', // TypeScript handles this
-    'no-useless-escape': 'warn',
+    'no-useless-escape': 'error',
   },
   ignorePatterns: [
     'dist/**/*',

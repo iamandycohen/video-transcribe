@@ -64,11 +64,11 @@ export class TranscriptionService {
         };
 
         // Handle session events
-        recognizer.sessionStarted = (s, e) => {
+        recognizer.sessionStarted = (_s, _e) => {
           logger.debug('Transcription session started');
         };
 
-        recognizer.sessionStopped = (s, e) => {
+        recognizer.sessionStopped = (_s, _e) => {
           logger.debug('Transcription session stopped');
           
           const duration = Date.now() - startTime;
@@ -142,10 +142,8 @@ export class TranscriptionService {
 
   public async transcribeWithDiarization(audioFilePath: string): Promise<TranscriptionResult> {
     // Enhanced transcription with speaker diarization
-    const speechConfig = this.azureClient.getSpeechConfig();
-    
-    // Enable speaker diarization
-    const conversationTranscriber = new speechSdk.ConversationTranscriber(speechConfig);
+    // const speechConfig = this.azureClient.getSpeechConfig();
+    // const conversationTranscriber = new speechSdk.ConversationTranscriber(speechConfig);
     
     // This is a more advanced feature that would require additional setup
     // For now, fall back to regular transcription

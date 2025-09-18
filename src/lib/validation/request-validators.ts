@@ -3,7 +3,6 @@
  */
 
 import { Request } from 'express';
-import { UploadedFile } from '../storage/upload-manager';
 
 export interface ValidationResult {
   isValid: boolean;

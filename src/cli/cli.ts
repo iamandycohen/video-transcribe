@@ -66,7 +66,6 @@ program
       console.log(`✅ Transcription completed with ID: ${transcriptionResult.transcriptionId}`);
       
       let finalText = transcriptionResult.rawText;
-      let enhancement: any = null;
       let summary: string | null = null;
       
       // Step 4: Enhance transcription (optional)

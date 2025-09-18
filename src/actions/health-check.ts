@@ -4,7 +4,6 @@
 
 import { Request, Response } from 'express';
 import { HealthCheckService } from '../services/health-check-service';
-import { ApiResponseHandler } from '../lib/responses/api-responses';
 import { logger } from '../utils/logger';
 
 export class HealthCheckAction {
