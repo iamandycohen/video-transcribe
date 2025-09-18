@@ -5,6 +5,7 @@ FROM node:20-alpine AS builder
 ARG BUILD_VERSION=2.0.0-stateless-dev
 ARG BUILD_TIMESTAMP
 ARG GIT_COMMIT=unknown
+ARG GIT_BRANCH=unknown
 ARG IMAGE_TAG=latest
 
 # Set working directory
@@ -51,6 +52,7 @@ COPY --from=builder /app/dist ./dist
 ENV BUILD_VERSION=${BUILD_VERSION}
 ENV BUILD_TIMESTAMP=${BUILD_TIMESTAMP}
 ENV GIT_COMMIT=${GIT_COMMIT}
+ENV GIT_BRANCH=${GIT_BRANCH}
 ENV IMAGE_TAG=${IMAGE_TAG}
 
 # Create required directories

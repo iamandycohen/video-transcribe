@@ -1,4 +1,4 @@
-import { OpenAIClient } from '@azure/openai';
+import { AzureOpenAI } from 'openai';
 import { AzureClientService } from './azure-client';
 import { TranscriptionResult } from './transcription-service';
 import { azureConfig } from '../config/azure-config';
@@ -15,7 +15,7 @@ export interface EnhancedTranscription {
 }
 
 export class GPTEnhancementService {
-  private openaiClient: OpenAIClient;
+  private openaiClient: AzureOpenAI;
 
   constructor() {
     const azureClient = new AzureClientService();
@@ -64,9 +64,9 @@ ${rawText}
 
 Improved transcription:`;
 
-    const response = await this.openaiClient.getChatCompletions(
-      azureConfig.models.gptAudio,
-      [
+    const response = await this.openaiClient.chat.completions.create({
+      model: azureConfig.models.gptAudio,
+      messages: [
         {
           role: 'system',
           content: 'You are an expert editor specializing in cleaning up speech-to-text transcriptions. Your goal is to make the text more readable while preserving the original meaning exactly.'
@@ -76,11 +76,9 @@ Improved transcription:`;
           content: prompt
         }
       ],
-      {
-        maxTokens: 4000,
-        temperature: 0.1
-      }
-    );
+      max_tokens: 4000,
+      temperature: 0.1
+    });
 
     return response.choices[0].message?.content || rawText;
   }
@@ -92,9 +90,9 @@ ${text}
 
 Summary:`;
 
-    const response = await this.openaiClient.getChatCompletions(
-      azureConfig.models.gptAudio,
-      [
+    const response = await this.openaiClient.chat.completions.create({
+      model: azureConfig.models.gptAudio,
+      messages: [
         {
           role: 'system',
           content: 'You are an expert at creating concise, informative summaries that capture the essence of spoken content.'
@@ -104,11 +102,9 @@ Summary:`;
           content: prompt
         }
       ],
-      {
-        maxTokens: 500,
-        temperature: 0.2
-      }
-    );
+      max_tokens: 500,
+      temperature: 0.2
+    });
 
     return response.choices[0].message?.content || 'Summary not available';
   }
@@ -120,9 +116,9 @@ ${text}
 
 Key points:`;
 
-    const response = await this.openaiClient.getChatCompletions(
-      azureConfig.models.gptAudio,
-      [
+    const response = await this.openaiClient.chat.completions.create({
+      model: azureConfig.models.gptAudio,
+      messages: [
         {
           role: 'system',
           content: 'You are an expert at identifying and extracting key information from spoken content. Return only the bullet points, one per line.'
@@ -132,18 +128,16 @@ Key points:`;
           content: prompt
         }
       ],
-      {
-        maxTokens: 800,
-        temperature: 0.1
-      }
-    );
+      max_tokens: 800,
+      temperature: 0.1
+    });
 
     const keyPointsText = response.choices[0].message?.content || '';
     return keyPointsText
       .split('\n')
-      .filter(line => line.trim())
-      .map(line => line.replace(/^[•\-*]\s*/, '').trim())
-      .filter(line => line.length > 0);
+      .filter((line: string) => line.trim())
+      .map((line: string) => line.replace(/^[•\-*]\s*/, '').trim())
+      .filter((line: string) => line.length > 0);
   }
 
   private async identifyTopics(text: string): Promise<string[]> {
@@ -153,9 +147,9 @@ ${text}
 
 Topics:`;
 
-    const response = await this.openaiClient.getChatCompletions(
-      azureConfig.models.gptAudio,
-      [
+    const response = await this.openaiClient.chat.completions.create({
+      model: azureConfig.models.gptAudio,
+      messages: [
         {
           role: 'system',
           content: 'You are an expert at topic identification. Return only topic names separated by commas, focusing on the main subjects discussed.'
@@ -165,17 +159,15 @@ Topics:`;
           content: prompt
         }
       ],
-      {
-        maxTokens: 200,
-        temperature: 0.1
-      }
-    );
+      max_tokens: 200,
+      temperature: 0.1
+    });
 
     const topicsText = response.choices[0].message?.content || '';
     return topicsText
       .split(',')
-      .map(topic => topic.trim())
-      .filter(topic => topic.length > 0)
+      .map((topic: string) => topic.trim())
+      .filter((topic: string) => topic.length > 0)
       .slice(0, 10); // Limit to top 10 topics
   }
 
@@ -186,9 +178,9 @@ ${text}
 
 Sentiment:`;
 
-    const response = await this.openaiClient.getChatCompletions(
-      azureConfig.models.gptAudio,
-      [
+    const response = await this.openaiClient.chat.completions.create({
+      model: azureConfig.models.gptAudio,
+      messages: [
         {
           role: 'system',
           content: 'You are an expert at sentiment analysis. Respond with only one word: positive, negative, or neutral.'
@@ -198,11 +190,9 @@ Sentiment:`;
           content: prompt
         }
       ],
-      {
-        maxTokens: 10,
-        temperature: 0.1
-      }
-    );
+      max_tokens: 10,
+      temperature: 0.1
+    });
 
     const sentiment = response.choices[0].message?.content?.toLowerCase().trim();
     

@@ -1,0 +1,244 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Get Workflow State",
+    "description": "Retrieve the current state of a video transcription workflow by ID",
+    "version": "2.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://video-transcribe-api.calmocean-ce622c12.eastus2.azurecontainerapps.io",
+      "description": "Production Azure Container App"
+    }
+  ],
+  "paths": {
+    "/workflow/{workflow_id}": {
+      "get": {
+        "summary": "Get Workflow State",
+        "description": "Retrieve the complete state of a workflow including step status, timing, results, and errors",
+        "operationId": "getWorkflowState",
+        "parameters": [
+          {
+            "name": "workflow_id",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier for the workflow",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "f490b506-8c8b-411c-a08f-e4da529aed34"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workflow state retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "state": {
+                      "type": "object",
+                      "properties": {
+                        "workflow_id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "last_updated": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "steps": {
+                          "type": "object",
+                          "properties": {
+                            "upload_video": {
+                              "$ref": "#/components/schemas/WorkflowStep"
+                            },
+                            "extract_audio": {
+                              "$ref": "#/components/schemas/WorkflowStep"
+                            },
+                            "transcribe_audio": {
+                              "$ref": "#/components/schemas/WorkflowStep"
+                            },
+                            "enhance_transcription": {
+                              "$ref": "#/components/schemas/WorkflowStep"
+                            },
+                            "summarize_content": {
+                              "$ref": "#/components/schemas/WorkflowStep"
+                            },
+                            "extract_key_points": {
+                              "$ref": "#/components/schemas/WorkflowStep"
+                            },
+                            "analyze_sentiment": {
+                              "$ref": "#/components/schemas/WorkflowStep"
+                            },
+                            "identify_topics": {
+                              "$ref": "#/components/schemas/WorkflowStep"
+                            }
+                          }
+                        },
+                        "completed_steps": {
+                          "type": "integer",
+                          "example": 4
+                        },
+                        "failed_steps": {
+                          "type": "integer",
+                          "example": 0
+                        },
+                        "total_processing_time": {
+                          "type": "integer",
+                          "description": "Total processing time in milliseconds",
+                          "example": 9837
+                        },
+                        "summary": {
+                          "type": "string",
+                          "description": "AI-generated summary (if available)"
+                        },
+                        "sentiment": {
+                          "type": "object",
+                          "properties": {
+                            "value": {
+                              "type": "string",
+                              "enum": ["positive", "negative", "neutral"]
+                            },
+                            "confidence": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            }
+                          }
+                        },
+                        "key_points": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "topics": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Workflow state retrieved successfully."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Workflow not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "Workflow not found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "WorkflowStep": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["pending", "running", "completed", "failed"],
+            "description": "Current status of the step"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the step was started"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the step was completed"
+          },
+          "processing_time": {
+            "type": "integer",
+            "description": "Processing time in milliseconds"
+          },
+          "result": {
+            "type": "object",
+            "description": "Step-specific result data"
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "message": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              }
+            },
+            "description": "Error information if step failed"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API key for authentication"
+      }
+    }
+  }
+}

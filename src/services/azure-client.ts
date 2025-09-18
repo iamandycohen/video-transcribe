@@ -1,11 +1,11 @@
 import { AzureKeyCredential } from '@azure/core-auth';
-import { OpenAIClient } from '@azure/openai';
+import { AzureOpenAI } from 'openai';
 import * as speechSdk from 'microsoft-cognitiveservices-speech-sdk';
 import { azureConfig } from '../config/azure-config';
 import { logger } from '../utils/logger';
 
 export class AzureClientService {
-  private openaiClient!: OpenAIClient;
+  private openaiClient!: AzureOpenAI;
   private speechConfig!: speechSdk.SpeechConfig;
 
   constructor() {
@@ -15,10 +15,11 @@ export class AzureClientService {
   private initializeClients(): void {
     try {
       // Initialize OpenAI client
-      this.openaiClient = new OpenAIClient(
-        azureConfig.endpoints.openai,
-        new AzureKeyCredential(azureConfig.apiKey)
-      );
+      this.openaiClient = new AzureOpenAI({
+        endpoint: azureConfig.endpoints.openai,
+        apiKey: azureConfig.apiKey,
+        apiVersion: "2024-08-01-preview"
+      });
 
       // Initialize Speech SDK configuration
       this.speechConfig = speechSdk.SpeechConfig.fromEndpoint(
@@ -37,7 +38,7 @@ export class AzureClientService {
     }
   }
 
-  public getOpenAIClient(): OpenAIClient {
+  public getOpenAIClient(): AzureOpenAI {
     return this.openaiClient;
   }
 

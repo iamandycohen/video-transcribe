@@ -105,7 +105,7 @@
 npm install && npm run build
 npm run api-server                    # Start production server (port 3000)
 
-# Testing  
+# Testing
 node test-stateless-workflow.js       # End-to-end workflow test
 
 # Deployment

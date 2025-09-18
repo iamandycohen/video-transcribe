@@ -23,7 +23,7 @@
     "/enhance-transcription": {
       "post": {
         "summary": "Enhance Transcription with AI",
-        "description": "Enhances raw transcription text using GPT models for better formatting and clarity.",
+        "description": "Enhances raw transcription text using GPT models for better formatting, punctuation, and clarity.",
         "operationId": "enhance_transcription",
         "tags": ["Text Processing"],
         "requestBody": {
@@ -36,7 +36,9 @@
                 "properties": {
                   "workflow_id": {
                     "type": "string",
-                    "description": "Workflow identifier - must have transcribed text"
+                    "format": "uuid",
+                    "description": "Workflow identifier - must have completed transcribe_audio step",
+                    "example": "e7df9936-50a0-41f4-bf8b-a153ed9ad631"
                   }
                 }
               }
@@ -57,10 +59,11 @@
                     },
                     "enhanced_text": {
                       "type": "string",
-                      "description": "AI-enhanced transcription text"
+                      "description": "AI-enhanced transcription with improved formatting and clarity"
                     },
                     "workflow_id": {
-                      "type": "string"
+                      "type": "string",
+                      "format": "uuid"
                     },
                     "message": {
                       "type": "string",
@@ -75,9 +78,6 @@
         "security": [
           {
             "ApiKeyAuth": []
-          },
-          {
-            "AzureManagedIdentity": []
           }
         ]
       }
@@ -98,7 +98,9 @@
                 "properties": {
                   "workflow_id": {
                     "type": "string",
-                    "description": "Workflow identifier - must have transcribed text"
+                    "format": "uuid",
+                    "description": "Workflow identifier - must have transcribed text",
+                    "example": "e7df9936-50a0-41f4-bf8b-a153ed9ad631"
                   }
                 }
               }
@@ -119,10 +121,11 @@
                     },
                     "summary": {
                       "type": "string",
-                      "description": "AI-generated summary"
+                      "description": "AI-generated summary of the content"
                     },
                     "workflow_id": {
-                      "type": "string"
+                      "type": "string",
+                      "format": "uuid"
                     },
                     "message": {
                       "type": "string",
@@ -137,9 +140,6 @@
         "security": [
           {
             "ApiKeyAuth": []
-          },
-          {
-            "AzureManagedIdentity": []
           }
         ]
       }
@@ -160,7 +160,9 @@
                 "properties": {
                   "workflow_id": {
                     "type": "string",
-                    "description": "Workflow identifier - must have transcribed text"
+                    "format": "uuid",
+                    "description": "Workflow identifier - must have transcribed text",
+                    "example": "e7df9936-50a0-41f4-bf8b-a153ed9ad631"
                   }
                 }
               }
@@ -179,15 +181,16 @@
                       "type": "boolean",
                       "example": true
                     },
-                    "keyPoints": {
+                    "key_points": {
                       "type": "array",
                       "items": {
                         "type": "string"
                       },
-                      "description": "Extracted key points"
+                      "description": "List of key points extracted from the content"
                     },
                     "workflow_id": {
-                      "type": "string"
+                      "type": "string",
+                      "format": "uuid"
                     },
                     "message": {
                       "type": "string",
@@ -202,16 +205,13 @@
         "security": [
           {
             "ApiKeyAuth": []
-          },
-          {
-            "AzureManagedIdentity": []
           }
         ]
       }
     },
     "/analyze-sentiment": {
       "post": {
-        "summary": "Analyze Content Sentiment",
+        "summary": "Analyze Sentiment",
         "description": "Analyzes the sentiment of the transcribed content.",
         "operationId": "analyze_sentiment",
         "tags": ["Text Processing"],
@@ -225,7 +225,9 @@
                 "properties": {
                   "workflow_id": {
                     "type": "string",
-                    "description": "Workflow identifier - must have transcribed text"
+                    "format": "uuid",
+                    "description": "Workflow identifier - must have transcribed text",
+                    "example": "e7df9936-50a0-41f4-bf8b-a153ed9ad631"
                   }
                 }
               }
@@ -245,18 +247,22 @@
                       "example": true
                     },
                     "sentiment": {
-                      "type": "string",
-                      "enum": ["positive", "neutral", "negative"],
-                      "description": "Overall sentiment"
-                    },
-                    "confidence": {
-                      "type": "number",
-                      "minimum": 0,
-                      "maximum": 1,
-                      "description": "Confidence score"
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": "string",
+                          "enum": ["positive", "negative", "neutral"]
+                        },
+                        "confidence": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        }
+                      }
                     },
                     "workflow_id": {
-                      "type": "string"
+                      "type": "string",
+                      "format": "uuid"
                     },
                     "message": {
                       "type": "string",
@@ -271,16 +277,13 @@
         "security": [
           {
             "ApiKeyAuth": []
-          },
-          {
-            "AzureManagedIdentity": []
           }
         ]
       }
     },
     "/identify-topics": {
       "post": {
-        "summary": "Identify Content Topics",
+        "summary": "Identify Topics",
         "description": "Identifies main topics and themes from the transcribed content.",
         "operationId": "identify_topics",
         "tags": ["Text Processing"],
@@ -294,7 +297,9 @@
                 "properties": {
                   "workflow_id": {
                     "type": "string",
-                    "description": "Workflow identifier - must have transcribed text"
+                    "format": "uuid",
+                    "description": "Workflow identifier - must have transcribed text",
+                    "example": "e7df9936-50a0-41f4-bf8b-a153ed9ad631"
                   }
                 }
               }
@@ -318,10 +323,11 @@
                       "items": {
                         "type": "string"
                       },
-                      "description": "Identified topics"
+                      "description": "List of main topics identified in the content"
                     },
                     "workflow_id": {
-                      "type": "string"
+                      "type": "string",
+                      "format": "uuid"
                     },
                     "message": {
                       "type": "string",
@@ -336,9 +342,6 @@
         "security": [
           {
             "ApiKeyAuth": []
-          },
-          {
-            "AzureManagedIdentity": []
           }
         ]
       }
@@ -350,19 +353,8 @@
         "type": "apiKey",
         "in": "header",
         "name": "X-API-Key",
-        "description": "API key for direct REST API access"
-      },
-      "AzureManagedIdentity": {
-        "type": "http",
-        "scheme": "bearer",
-        "description": "Azure Managed Identity token (automatically handled by Azure AI Foundry)"
+        "description": "API key for authentication"
       }
     }
-  },
-  "tags": [
-    {
-      "name": "Text Processing",
-      "description": "Text analysis and enhancement operations"
-    }
-  ]
+  }
 }
