@@ -11,7 +11,7 @@
     "lint": "eslint src/**/*.ts",
     "test": "jest",
     "test-agent": "node test-agent.js",
-    "api-server": "node dist/src/api-server.js",
+    "api-server": "node dist/src/api-server-stateless.js",
     "autonomous": "node examples/autonomous-agent.js"
   },
   "keywords": [
@@ -29,8 +29,10 @@
     "@azure/core-client": "^1.7.3",
     "@azure/logger": "^1.0.4",
     "@azure/openai": "^1.0.0-beta.12",
+    "@types/cors": "^2.8.19",
     "chokidar": "^3.5.3",
     "commander": "^11.1.0",
+    "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "ffmpeg-static": "^5.2.0",

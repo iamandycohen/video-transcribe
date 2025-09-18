@@ -1,8 +1,8 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Upload Video Action - Stateless",
-    "description": "Downloads video from URL and associates it with a workflow for processing.\n\nThis action downloads video files from remote URLs and stores them with a workflow reference. The workflow_id must be obtained from the create_workflow action first.\n\nPerfect for Azure AI Foundry agent workflows where users provide video URLs for transcription processing.",
+    "title": "Extract Audio Action",
+    "description": "Extracts audio from uploaded video and prepares for transcription.\n\nThis action processes video files to extract audio tracks for transcription. It automatically cleans up the video file after successful extraction to save storage space.\n\nPerfect for Azure AI Foundry workflows that need to prepare audio for speech-to-text processing.",
     "version": "2.0.0-stateless",
     "contact": {
       "name": "Andy Cohen",
@@ -20,11 +20,11 @@
     }
   ],
   "paths": {
-    "/upload-video": {
+    "/extract-audio": {
       "post": {
-        "summary": "Upload Video to Workflow",
-        "description": "Downloads video from URL and associates it with a workflow.\n\nRequires workflow_id from create_workflow action. Stores video reference in workflow state for subsequent operations.\n\nWorkflow:\n1. Get workflow_id from create_workflow action\n2. Call this action with workflow_id and video URL\n3. Use same workflow_id with extract_audio action",
-        "operationId": "upload_video",
+        "summary": "Extract Audio from Video",
+        "description": "Extracts audio from uploaded video and stores audio reference in workflow state.\n\nAutomatically cleans up video file after successful extraction to save space.\n\nWorkflow:\n1. Upload video using upload_video action\n2. Call this action with workflow_id\n3. Use same workflow_id with transcribe_audio action",
+        "operationId": "extract_audio",
         "tags": ["File Processing"],
         "requestBody": {
           "required": true,
@@ -32,18 +32,12 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["workflow_id", "source_url"],
+                "required": ["workflow_id"],
                 "properties": {
                   "workflow_id": {
                     "type": "string",
-                    "description": "Workflow identifier from create_workflow action",
+                    "description": "Workflow identifier - must have uploaded video",
                     "example": "6902573c-9c6c-446c-9f32-72bf5e5554f6"
-                  },
-                  "source_url": {
-                    "type": "string",
-                    "format": "uri",
-                    "description": "Remote URL of the video file to download and process",
-                    "example": "https://example.com/sample-video.mp4"
                   }
                 }
               }
@@ -52,7 +46,7 @@
         },
         "responses": {
           "200": {
-            "description": "Video uploaded and associated with workflow successfully",
+            "description": "Audio extracted successfully",
             "content": {
               "application/json": {
                 "schema": {
@@ -67,39 +61,38 @@
                       "description": "Workflow identifier for subsequent operations",
                       "example": "6902573c-9c6c-446c-9f32-72bf5e5554f6"
                     },
-                    "reference_id": {
-                      "type": "string",
-                      "description": "File reference identifier stored in workflow state",
-                      "example": "file://temp/video_6902573c-9c6c-446c-9f32-72bf5e5554f6_abc123.mp4"
+                    "cleanup": {
+                      "type": "object",
+                      "description": "Video file cleanup results",
+                      "properties": {
+                        "success": {
+                          "type": "boolean",
+                          "example": true
+                        },
+                        "spaceFreed": {
+                          "type": "number",
+                          "description": "Bytes freed by cleaning up video file",
+                          "example": 6516900
+                        }
+                      }
                     },
                     "next_action": {
                       "type": "string",
-                      "description": "Suggested next step in the workflow",
-                      "example": "Use workflow_id with extract_audio action to continue processing"
+                      "description": "Suggested next step",
+                      "example": "Transcribe the audio using transcribe_audio action with this workflow_id"
                     },
-                    "file_info": {
-                      "type": "object",
-                      "properties": {
-                        "size": {
-                          "type": "integer",
-                          "description": "File size in bytes",
-                          "example": 15728640
-                        },
-                        "contentType": {
-                          "type": "string",
-                          "description": "MIME type of the uploaded file",
-                          "example": "video/mp4"
-                        }
-                      }
+                    "message": {
+                      "type": "string",
+                      "example": "Audio extracted successfully. Video file cleaned up. Audio ready for transcription."
                     }
                   },
-                  "required": ["success", "workflow_id", "reference_id", "next_action"]
+                  "required": ["success", "workflow_id", "cleanup", "next_action", "message"]
                 }
               }
             }
           },
           "400": {
-            "description": "Invalid request - missing required parameters or invalid workflow_id",
+            "description": "Bad request - invalid workflow_id or no video",
             "content": {
               "application/json": {
                 "schema": {
@@ -111,11 +104,15 @@
                     },
                     "error": {
                       "type": "string",
-                      "example": "Workflow not found or invalid workflow_id"
+                      "examples": [
+                        "workflow_id is required",
+                        "Workflow not found",
+                        "No video found in workflow"
+                      ]
                     },
-                    "next_action": {
+                    "timestamp": {
                       "type": "string",
-                      "example": "Create a new workflow using create_workflow action first"
+                      "format": "date-time"
                     }
                   }
                 }
@@ -143,7 +140,7 @@
             }
           },
           "500": {
-            "description": "Internal server error - video download or processing failed",
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -155,11 +152,7 @@
                     },
                     "error": {
                       "type": "string",
-                      "example": "Failed to download video from URL"
-                    },
-                    "details": {
-                      "type": "string",
-                      "example": "Connection timeout or invalid URL format"
+                      "example": "Audio extraction failed"
                     },
                     "timestamp": {
                       "type": "string",
@@ -200,7 +193,7 @@
   "tags": [
     {
       "name": "File Processing",
-      "description": "Video and audio file processing operations"
+      "description": "Video and audio processing operations"
     }
   ]
 }

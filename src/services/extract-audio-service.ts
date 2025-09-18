@@ -6,8 +6,16 @@
 import { AudioExtractorService, AudioExtractionResult } from './audio-extractor';
 import { UploadVideoService } from './upload-video-service';
 import { logger } from '../utils/logger';
+import { promises as fs } from 'fs';
+import path from 'path';
 
 export interface ExtractAudioRequest {
+  uploadId: string;
+}
+
+export interface ExtractAudioFromPathRequest {
+  filePath: string;
+  originalName: string;
   uploadId: string;
 }
 
@@ -25,13 +33,13 @@ export class ExtractAudioService {
   private uploadService: UploadVideoService;
   private audioFiles: Map<string, { filePath: string; originalVideoName: string; createdAt: Date }> = new Map();
 
-  constructor() {
+  constructor(uploadService?: UploadVideoService) {
     this.audioExtractor = new AudioExtractorService();
-    this.uploadService = new UploadVideoService();
+    this.uploadService = uploadService || new UploadVideoService();
   }
 
   /**
-   * Extract audio from uploaded video - returns audioId for next step
+   * Extract audio from uploaded video - uses convention to find file by uploadId
    */
   async extractAudio(request: ExtractAudioRequest): Promise<ExtractAudioResult> {
     const startTime = Date.now();
@@ -39,26 +47,30 @@ export class ExtractAudioService {
     try {
       logger.info(`Starting audio extraction for uploadId: ${request.uploadId}`);
 
-      // Get uploaded video
-      const uploadedVideo = await this.uploadService.getUploadedVideo(request.uploadId);
-      if (!uploadedVideo) {
-        throw new Error('Upload ID not found or expired');
+      // Use convention: video files are stored as {uploadId}.mp4
+      const videoFilePath = path.join('./temp/uploads', `${request.uploadId}.mp4`);
+      
+      // Check if file exists
+      try {
+        await fs.access(videoFilePath);
+      } catch (error) {
+        throw new Error('Video file not found for uploadId');
       }
 
       // Validate video file
-      const isValid = await this.audioExtractor.validateMp4File(uploadedVideo.filePath);
+      const isValid = await this.audioExtractor.validateMp4File(videoFilePath);
       if (!isValid) {
         throw new Error('Invalid MP4 file');
       }
 
       // Extract audio
-      const audioResult: AudioExtractionResult = await this.audioExtractor.extractAudioFromMp4(uploadedVideo.filePath);
+      const audioResult: AudioExtractionResult = await this.audioExtractor.extractAudioFromMp4(videoFilePath);
 
-      // Generate audioId and store reference
-      const audioId = `audio_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      // Generate audioId using convention: audio_{uploadId}_{timestamp}
+      const audioId = `audio_${request.uploadId}_${Date.now()}`;
       this.audioFiles.set(audioId, {
         filePath: audioResult.audioFilePath,
-        originalVideoName: uploadedVideo.originalName,
+        originalVideoName: `video_${request.uploadId}.mp4`,
         createdAt: new Date()
       });
 
@@ -70,7 +82,7 @@ export class ExtractAudioService {
         success: true,
         audioId,
         audioFilePath: audioResult.audioFilePath,
-        originalVideoName: uploadedVideo.originalName,
+        originalVideoName: `video_${request.uploadId}.mp4`,
         extractionTime
       };
 
@@ -79,6 +91,61 @@ export class ExtractAudioService {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
       logger.error(`Audio extraction failed for uploadId: ${request.uploadId}:`, error);
+
+      return {
+        success: false,
+        audioId: '',
+        audioFilePath: '',
+        originalVideoName: '',
+        extractionTime,
+        error: errorMessage
+      };
+    }
+  }
+
+  /**
+   * Extract audio from direct file path - bypasses upload lookup
+   */
+  async extractAudioFromPath(request: ExtractAudioFromPathRequest): Promise<ExtractAudioResult> {
+    const startTime = Date.now();
+    
+    try {
+      logger.info(`Starting audio extraction from path: ${request.filePath}`);
+
+      // Validate video file
+      const isValid = await this.audioExtractor.validateMp4File(request.filePath);
+      if (!isValid) {
+        throw new Error('Invalid MP4 file');
+      }
+
+      // Extract audio
+      const audioResult: AudioExtractionResult = await this.audioExtractor.extractAudioFromMp4(request.filePath);
+
+      // Generate audioId and store reference
+      const audioId = `audio_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      this.audioFiles.set(audioId, {
+        filePath: audioResult.audioFilePath,
+        originalVideoName: request.originalName,
+        createdAt: new Date()
+      });
+
+      const extractionTime = Date.now() - startTime;
+
+      logger.info(`Audio extraction completed from path → audioId: ${audioId} in ${extractionTime}ms`);
+
+      return {
+        success: true,
+        audioId,
+        audioFilePath: audioResult.audioFilePath,
+        originalVideoName: request.originalName,
+        extractionTime
+      };
+
+    } catch (error) {
+      const extractionTime = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      logger.error(`Audio extraction failed from path: ${request.filePath}:`, error);
 
       return {
         success: false,

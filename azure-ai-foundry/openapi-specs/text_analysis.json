@@ -1,0 +1,368 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Text Analysis Actions",
+    "description": "AI-powered text analysis operations for transcribed content.\n\nThis specification includes all text processing operations:\n- Enhance transcription with AI formatting\n- Generate intelligent summaries\n- Extract key points and action items\n- Analyze sentiment and emotional tone\n- Identify main topics and themes\n\nAll operations use workflow_id to access transcribed text from workflow state. Perfect for Azure AI Foundry agents that need comprehensive text analysis.",
+    "version": "2.0.0-stateless",
+    "contact": {
+      "name": "Andy Cohen",
+      "email": "andy@iamandycohen.com"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://video-transcribe-api.calmocean-ce622c12.eastus2.azurecontainerapps.io",
+      "description": "Production API server"
+    }
+  ],
+  "paths": {
+    "/enhance-transcription": {
+      "post": {
+        "summary": "Enhance Transcription with AI",
+        "description": "Enhances raw transcription text using GPT models for better formatting and clarity.",
+        "operationId": "enhance_transcription",
+        "tags": ["Text Processing"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["workflow_id"],
+                "properties": {
+                  "workflow_id": {
+                    "type": "string",
+                    "description": "Workflow identifier - must have transcribed text"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transcription enhanced successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "enhanced_text": {
+                      "type": "string",
+                      "description": "AI-enhanced transcription text"
+                    },
+                    "workflow_id": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Transcription enhanced successfully."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "AzureManagedIdentity": []
+          }
+        ]
+      }
+    },
+    "/summarize-content": {
+      "post": {
+        "summary": "Generate Content Summary",
+        "description": "Generates an AI-powered summary of the transcribed content.",
+        "operationId": "summarize_content",
+        "tags": ["Text Processing"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["workflow_id"],
+                "properties": {
+                  "workflow_id": {
+                    "type": "string",
+                    "description": "Workflow identifier - must have transcribed text"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Content summarized successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "summary": {
+                      "type": "string",
+                      "description": "AI-generated summary"
+                    },
+                    "workflow_id": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Content summarized successfully."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "AzureManagedIdentity": []
+          }
+        ]
+      }
+    },
+    "/extract-key-points": {
+      "post": {
+        "summary": "Extract Key Points",
+        "description": "Extracts key points and action items from the transcribed content.",
+        "operationId": "extract_key_points",
+        "tags": ["Text Processing"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["workflow_id"],
+                "properties": {
+                  "workflow_id": {
+                    "type": "string",
+                    "description": "Workflow identifier - must have transcribed text"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Key points extracted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "keyPoints": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Extracted key points"
+                    },
+                    "workflow_id": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Key points extracted successfully."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "AzureManagedIdentity": []
+          }
+        ]
+      }
+    },
+    "/analyze-sentiment": {
+      "post": {
+        "summary": "Analyze Content Sentiment",
+        "description": "Analyzes the sentiment of the transcribed content.",
+        "operationId": "analyze_sentiment",
+        "tags": ["Text Processing"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["workflow_id"],
+                "properties": {
+                  "workflow_id": {
+                    "type": "string",
+                    "description": "Workflow identifier - must have transcribed text"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sentiment analyzed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "sentiment": {
+                      "type": "string",
+                      "enum": ["positive", "neutral", "negative"],
+                      "description": "Overall sentiment"
+                    },
+                    "confidence": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1,
+                      "description": "Confidence score"
+                    },
+                    "workflow_id": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Sentiment analyzed successfully."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "AzureManagedIdentity": []
+          }
+        ]
+      }
+    },
+    "/identify-topics": {
+      "post": {
+        "summary": "Identify Content Topics",
+        "description": "Identifies main topics and themes from the transcribed content.",
+        "operationId": "identify_topics",
+        "tags": ["Text Processing"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["workflow_id"],
+                "properties": {
+                  "workflow_id": {
+                    "type": "string",
+                    "description": "Workflow identifier - must have transcribed text"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Topics identified successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "topics": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Identified topics"
+                    },
+                    "workflow_id": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Topics identified successfully."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "AzureManagedIdentity": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API key for direct REST API access"
+      },
+      "AzureManagedIdentity": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Azure Managed Identity token (automatically handled by Azure AI Foundry)"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Text Processing",
+      "description": "Text analysis and enhancement operations"
+    }
+  ]
+}

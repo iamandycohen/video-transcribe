@@ -1,0 +1,145 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Create Workflow Action",
+    "description": "Creates a new workflow for video transcription processing.\n\nThis action initializes a new workflow and returns a workflow_id that must be used for all subsequent transcription operations. The workflow_id enables stateless operation by providing agent-managed shared state.\n\nPerfect for Azure AI Foundry agents that need to start a new video transcription workflow.",
+    "version": "2.0.0-stateless",
+    "contact": {
+      "name": "Andy Cohen",
+      "email": "andy@iamandycohen.com"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://video-transcribe-api.calmocean-ce622c12.eastus2.azurecontainerapps.io",
+      "description": "Production API server"
+    }
+  ],
+  "paths": {
+    "/workflow": {
+      "post": {
+        "summary": "Create New Workflow",
+        "description": "Creates a new workflow and returns a workflow_id for all subsequent operations.\n\nThis is the required first step for all transcription workflows. The workflow_id is used by all other atomic operations to share state.\n\nWorkflow:\n1. Call this action to get workflow_id\n2. Use workflow_id with upload-video action\n3. Continue with other actions using the same workflow_id",
+        "operationId": "create_workflow",
+        "tags": ["Workflow"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "description": "Empty object - no parameters required"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Workflow created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "workflow_id": {
+                      "type": "string",
+                      "description": "Unique workflow identifier - use for all subsequent operations",
+                      "example": "6902573c-9c6c-446c-9f32-72bf5e5554f6"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Workflow created successfully. Use workflow_id for all subsequent operations."
+                    }
+                  },
+                  "required": ["success", "workflow_id", "message"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized - Valid authentication required"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "Failed to create workflow"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "AzureManagedIdentity": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API key for direct REST API access"
+      },
+      "AzureManagedIdentity": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Azure Managed Identity token (automatically handled by Azure AI Foundry)"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Workflow",
+      "description": "Workflow management operations"
+    }
+  ]
+}

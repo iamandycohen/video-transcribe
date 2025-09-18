@@ -1,9 +1,17 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Video Transcription API",
-    "description": "Test version with no authentication",
-    "version": "1.0.0"
+    "title": "Health Check Action",
+    "description": "Checks the health and capabilities of the video transcription service.\n\nThis action provides status information about all service components including Azure connectivity, audio processing, transcription services, and AI enhancement capabilities.\n\nPerfect for Azure AI Foundry agents to verify service availability before starting transcription workflows.",
+    "version": "2.0.0-stateless",
+    "contact": {
+      "name": "Andy Cohen",
+      "email": "andy@iamandycohen.com"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
   },
   "servers": [
     {
@@ -14,20 +22,136 @@
   "paths": {
     "/health": {
       "get": {
-        "summary": "Health Check",
-        "description": "Check if the service is running",
-        "operationId": "transcribe_video_health",
+        "summary": "Check Service Health",
+        "description": "Returns comprehensive health status of all service components.\n\nProvides real-time status of:\n- Overall service health\n- Azure service connectivity\n- Audio processing capabilities\n- Transcription service status\n- AI enhancement availability\n- Service version and build information",
+        "operationId": "health_check",
+        "tags": ["Monitoring"],
         "responses": {
           "200": {
-            "description": "Service is healthy",
+            "description": "Service health information",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "healthy": {
-                      "type": "boolean",
-                      "example": true
+                    "status": {
+                      "type": "string",
+                      "enum": ["healthy", "degraded", "unhealthy"],
+                      "description": "Overall service health status",
+                      "example": "healthy"
+                    },
+                    "service": {
+                      "type": "string",
+                      "description": "Service name and architecture",
+                      "example": "video-transcription-agent-stateless"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "Current server timestamp",
+                      "example": "2025-09-18T15:30:45.123Z"
+                    },
+                    "version": {
+                      "type": "string",
+                      "description": "Service version",
+                      "example": "v2.0.0-stateless-20250918-101316"
+                    },
+                    "buildTime": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "Build timestamp",
+                      "example": "2025-09-18T15:11:52Z"
+                    },
+                    "gitCommit": {
+                      "type": "string",
+                      "description": "Git commit hash",
+                      "example": "d66c95d"
+                    },
+                    "imageTag": {
+                      "type": "string",
+                      "description": "Container image tag",
+                      "example": "v2.0.0-stateless-20250918-101316"
+                    },
+                    "architecture": {
+                      "type": "string",
+                      "description": "Service architecture type",
+                      "example": "stateless-workflow-managed"
+                    },
+                    "services": {
+                      "type": "object",
+                      "description": "Status of individual service components",
+                      "properties": {
+                        "azure": {
+                          "type": "boolean",
+                          "description": "Azure service connectivity",
+                          "example": true
+                        },
+                        "audioExtractor": {
+                          "type": "boolean",
+                          "description": "Audio extraction service (FFmpeg)",
+                          "example": true
+                        },
+                        "transcription": {
+                          "type": "boolean",
+                          "description": "Speech-to-text service",
+                          "example": true
+                        },
+                        "gptEnhancement": {
+                          "type": "boolean",
+                          "description": "AI text enhancement service",
+                          "example": true
+                        }
+                      }
+                    },
+                    "capabilities": {
+                      "type": "array",
+                      "description": "Available service capabilities",
+                      "items": {
+                        "type": "string"
+                      },
+                      "example": [
+                        "video_transcription",
+                        "audio_extraction", 
+                        "speech_to_text",
+                        "gpt_enhancement",
+                        "summary_generation",
+                        "topic_extraction",
+                        "sentiment_analysis"
+                      ]
+                    }
+                  },
+                  "required": ["status", "service", "timestamp", "version", "architecture"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service unavailable or degraded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["degraded", "unhealthy"],
+                      "example": "degraded"
+                    },
+                    "service": {
+                      "type": "string",
+                      "example": "video-transcription-agent-stateless"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "List of service issues",
+                      "items": {
+                        "type": "string"
+                      },
+                      "example": ["Azure Speech service unavailable", "GPT enhancement service timeout"]
                     }
                   }
                 }
@@ -37,5 +161,11 @@
         }
       }
     }
-  }
+  },
+  "tags": [
+    {
+      "name": "Monitoring",
+      "description": "Service monitoring and health check operations"
+    }
+  ]
 }

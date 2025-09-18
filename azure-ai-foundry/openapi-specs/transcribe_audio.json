@@ -1,0 +1,249 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Transcribe Audio Action",
+    "description": "Transcribes audio to text using Azure Speech-to-Text service.\n\nThis action processes audio files to generate accurate text transcriptions with timing information and confidence scores. It automatically cleans up audio files after successful transcription.\n\nPerfect for Azure AI Foundry workflows that need high-quality speech-to-text conversion.",
+    "version": "2.0.0-stateless",
+    "contact": {
+      "name": "Andy Cohen",
+      "email": "andy@iamandycohen.com"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://video-transcribe-api.calmocean-ce622c12.eastus2.azurecontainerapps.io",
+      "description": "Production API server"
+    }
+  ],
+  "paths": {
+    "/transcribe-audio": {
+      "post": {
+        "summary": "Transcribe Audio to Text",
+        "description": "Transcribes audio to text using Azure Speech-to-Text service.\n\nAutomatically cleans up audio file after successful transcription. Stores raw_text in workflow state for enhancement and analysis.\n\nWorkflow:\n1. Extract audio using extract_audio action\n2. Call this action with workflow_id\n3. Use same workflow_id with text processing actions",
+        "operationId": "transcribe_audio",
+        "tags": ["File Processing"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["workflow_id"],
+                "properties": {
+                  "workflow_id": {
+                    "type": "string",
+                    "description": "Workflow identifier - must have extracted audio",
+                    "example": "6902573c-9c6c-446c-9f32-72bf5e5554f6"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Audio transcribed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "raw_text": {
+                      "type": "string",
+                      "description": "Transcribed text from audio",
+                      "example": "This is a test video for transcription service validation."
+                    },
+                    "segments": {
+                      "type": "array",
+                      "description": "Detailed transcription segments with timing",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "description": "Segment text"
+                          },
+                          "startTime": {
+                            "type": "number",
+                            "description": "Start time in milliseconds"
+                          },
+                          "endTime": {
+                            "type": "number",
+                            "description": "End time in milliseconds"
+                          },
+                          "confidence": {
+                            "type": "number",
+                            "description": "Confidence score (0-1)"
+                          }
+                        }
+                      }
+                    },
+                    "language": {
+                      "type": "string",
+                      "description": "Detected language",
+                      "example": "en-US"
+                    },
+                    "confidence": {
+                      "type": "number",
+                      "description": "Overall confidence score",
+                      "example": 0.8378421
+                    },
+                    "duration": {
+                      "type": "number",
+                      "description": "Audio duration in milliseconds",
+                      "example": 3116
+                    },
+                    "transcriptionTime": {
+                      "type": "number",
+                      "description": "Processing time in milliseconds",
+                      "example": 3118
+                    },
+                    "workflow_id": {
+                      "type": "string",
+                      "description": "Workflow identifier for subsequent operations",
+                      "example": "6902573c-9c6c-446c-9f32-72bf5e5554f6"
+                    },
+                    "cleanup": {
+                      "type": "object",
+                      "description": "Audio file cleanup results",
+                      "properties": {
+                        "success": {
+                          "type": "boolean",
+                          "example": true
+                        },
+                        "spaceFreed": {
+                          "type": "number",
+                          "description": "Bytes freed by cleaning up audio file",
+                          "example": 159822
+                        }
+                      }
+                    },
+                    "next_action": {
+                      "type": "string",
+                      "description": "Suggested next step",
+                      "example": "Enhance transcription using enhance_transcription action with this workflow_id, or proceed directly to analysis"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Audio transcribed successfully. Audio file cleaned up. Text ready for enhancement or analysis."
+                    }
+                  },
+                  "required": ["success", "raw_text", "workflow_id", "cleanup", "next_action", "message"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid workflow_id or no audio",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "examples": [
+                        "workflow_id is required",
+                        "Workflow not found",
+                        "No audio found in workflow"
+                      ]
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized - Valid authentication required"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "Transcription failed"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "AzureManagedIdentity": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API key for direct REST API access"
+      },
+      "AzureManagedIdentity": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Azure Managed Identity token (automatically handled by Azure AI Foundry)"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "File Processing",
+      "description": "Video and audio processing operations"
+    }
+  ]
+}

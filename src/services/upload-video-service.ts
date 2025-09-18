@@ -112,9 +112,9 @@ export class UploadVideoService {
       const stats = await fs.stat(filePath);
       const originalName = path.basename(filePath);
       
-      // Copy file to temp directory
+      // Copy file to temp directory using convention: {uploadId}.mp4
       const uploadId = uuidv4();
-      const targetPath = path.join(this.tempDir, `${uploadId}_${originalName}`);
+      const targetPath = path.join(this.tempDir, `${uploadId}.mp4`);
       await fs.copyFile(filePath, targetPath);
 
       const file = {
@@ -128,6 +128,65 @@ export class UploadVideoService {
 
     } catch (error) {
       logger.error('Failed to store video from path:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Store a video file from a remote URL (for API usage)
+   */
+  async storeVideoFromUrl(url: string): Promise<UploadVideoResult> {
+    try {
+      logger.info(`Downloading video from URL: ${url}`);
+      
+      // Download the video
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to download video: ${response.status} ${response.statusText}`);
+      }
+      
+      // Get filename from URL or use default
+      const urlPath = new URL(url).pathname;
+      const originalName = path.basename(urlPath) || 'video.mp4';
+      
+      // Create uploadId first and use it consistently
+      const uploadId = uuidv4();
+      const targetPath = path.join(this.tempDir, `${uploadId}.mp4`);
+      
+      // Write downloaded content to file
+      const arrayBuffer = await response.arrayBuffer();
+      await fs.writeFile(targetPath, Buffer.from(arrayBuffer));
+      
+      logger.info(`Video downloaded successfully: ${arrayBuffer.byteLength} bytes`);
+      
+      // Store metadata directly (don't call storeVideo which creates a new uploadId)
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + this.defaultExpirationHours * 60 * 60 * 1000);
+
+      const uploadedVideo: UploadedVideo = {
+        uploadId,
+        originalName,
+        filePath: targetPath,
+        mimeType: 'video/mp4',
+        size: arrayBuffer.byteLength,
+        uploadedAt: now,
+        expiresAt
+      };
+
+      this.uploads.set(uploadId, uploadedVideo);
+      logger.info(`Video stored successfully: ${uploadId} (${originalName})`);
+
+      return {
+        uploadId,
+        originalName,
+        size: arrayBuffer.byteLength,
+        uploadedAt: now.toISOString(),
+        expiresAt: expiresAt.toISOString(),
+        message: 'Video uploaded successfully. Use the uploadId to process the video.'
+      };
+
+    } catch (error) {
+      logger.error('Failed to store video from URL:', error);
       throw error;
     }
   }

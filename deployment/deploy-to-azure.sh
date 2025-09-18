@@ -71,7 +71,7 @@ ENVIRONMENT_NAME="${ENVIRONMENT_NAME:-transcribe-env}"
 IDENTITY_NAME="${IDENTITY_NAME:-transcribe-identity}"
 ACR_NAME="${ACR_NAME:-iamandycohen}"
 IMAGE_NAME="${IMAGE_NAME:-video-transcribe}"
-IMAGE_TAG="${IMAGE_TAG:-latest}"
+IMAGE_TAG="${IMAGE_TAG:-v2.0.0-stateless-$(date +%Y%m%d-%H%M%S)}"
 
 # Validate required environment variables
 if [ -z "$SUBSCRIPTION_ID" ] || [ -z "$RESOURCE_GROUP" ] || [ -z "$AZURE_API_KEY" ] || [ -z "$API_KEY" ]; then
@@ -113,10 +113,28 @@ else
 fi
 
 if [ "$SKIP_BUILD" = false ]; then
-  # Build and push Docker image using Azure Cloud Build (no local Docker required)
-  echo "🐳 Building Docker image in Azure Cloud (no local Docker required)..."
+  # Generate version info for build
+  echo "📝 Generating version info..."
+  BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+  GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+  VERSION_TAG="v2.0.0-stateless-$(date +%Y%m%d-%H%M%S)"
+  
+  echo "📦 Version: $VERSION_TAG"
+  echo "⏰ Build Time: $BUILD_TIME"
+  echo "🔗 Git Commit: $GIT_COMMIT"
+  
+  # Build and push Docker image using Azure Cloud Build with build arguments
+  echo "🐳 Building Docker image in Azure Cloud with embedded version info..."
   print_elapsed "Starting Docker build"
-  az acr build --registry $ACR_NAME --image $IMAGE_NAME:$IMAGE_TAG .
+  az acr build \
+    --registry $ACR_NAME \
+    --image $IMAGE_NAME:$VERSION_TAG \
+    --build-arg BUILD_VERSION=$VERSION_TAG \
+    --build-arg BUILD_TIMESTAMP="$BUILD_TIME" \
+    --build-arg GIT_COMMIT=$GIT_COMMIT \
+    --build-arg IMAGE_TAG=$VERSION_TAG \
+    .
+  IMAGE_TAG=$VERSION_TAG
   print_elapsed "Docker build completed"
 else
   echo "⏭️  Skipping Docker build (--skip-build)"
@@ -210,8 +228,9 @@ if az containerapp show --name $CONTAINER_APP_NAME --resource-group $RESOURCE_GR
   
   print_elapsed "Secrets updated"
   
-  # Then update the container app
+  # Then update the container app with specific versioned image
   echo "🔄 Updating Container App configuration..."
+  echo "🏷️  Using image: $ACR_NAME.azurecr.io/$IMAGE_NAME:$IMAGE_TAG"
   az containerapp update \
     --name $CONTAINER_APP_NAME \
     --resource-group $RESOURCE_GROUP \
@@ -233,6 +252,7 @@ if az containerapp show --name $CONTAINER_APP_NAME --resource-group $RESOURCE_GR
   print_elapsed "Container App update completed"
 else
   echo "🚀 Creating new Container App..."
+  echo "🏷️  Using image: $ACR_NAME.azurecr.io/$IMAGE_NAME:$IMAGE_TAG"
   az containerapp create \
     --name $CONTAINER_APP_NAME \
     --resource-group $RESOURCE_GROUP \
@@ -277,11 +297,20 @@ print_elapsed "Total deployment time"
 echo "✅ Deployment completed successfully!"
 echo "🌐 Application URL: https://$APP_URL"
 echo "🏥 Health Check: https://$APP_URL/health"
-echo "📖 API Documentation: https://$APP_URL/agent-example"
+echo "🏷️  Deployed Image: $ACR_NAME.azurecr.io/$IMAGE_NAME:$IMAGE_TAG"
 echo ""
-echo "📋 Test the API:"
-echo "curl -X POST https://$APP_URL/transcribe \\"
+echo "🔍 Verifying deployment version..."
+if command -v curl >/dev/null 2>&1; then
+  sleep 10  # Wait for container to start
+  echo "$(curl -s https://$APP_URL/health | grep -o '"version":"[^"]*"' || echo 'Version check failed')"
+else
+  echo "curl not available - manually check https://$APP_URL/health for version info"
+fi
+echo ""
+echo "📋 Test the stateless workflow:"
+echo "curl -X POST https://$APP_URL/workflow \\"
 echo "  -H \"Content-Type: application/json\" \\"
-echo "  -d '{\"videoPath\": \"./test.mp4\", \"enhance\": true}'"
+echo "  -H \"X-API-Key: your-api-key\" \\"
+echo "  -d '{}'"
 echo ""
 echo "🤖 Use this URL in your Azure AI Foundry agent configuration"

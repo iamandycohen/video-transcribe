@@ -1,6 +1,12 @@
 # Multi-stage build for production
 FROM node:20-alpine AS builder
 
+# Build arguments (set by Azure ACR build)
+ARG BUILD_VERSION=2.0.0-stateless-dev
+ARG BUILD_TIMESTAMP
+ARG GIT_COMMIT=unknown
+ARG IMAGE_TAG=latest
+
 # Set working directory
 WORKDIR /app
 
@@ -41,6 +47,12 @@ RUN npm ci --only=production && npm cache clean --force
 # Copy built application
 COPY --from=builder /app/dist ./dist
 
+# Set build info as environment variables in the container
+ENV BUILD_VERSION=${BUILD_VERSION}
+ENV BUILD_TIMESTAMP=${BUILD_TIMESTAMP}
+ENV GIT_COMMIT=${GIT_COMMIT}
+ENV IMAGE_TAG=${IMAGE_TAG}
+
 # Create required directories
 RUN mkdir -p temp output logs
 RUN chown -R nodejs:nodejs /app
@@ -55,5 +67,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
-# Start the API server
-CMD ["node", "dist/src/api-server.js"]
+# Start the stateless API server
+CMD ["node", "dist/src/api-server-stateless.js"]
