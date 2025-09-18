@@ -1,4 +1,3 @@
-import { AzureKeyCredential } from '@azure/core-auth';
 import { AzureOpenAI } from 'openai';
 import * as speechSdk from 'microsoft-cognitiveservices-speech-sdk';
 import { azureConfig } from '../config/azure-config';
