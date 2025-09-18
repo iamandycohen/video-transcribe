@@ -1,0 +1,205 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Upload Video Action",
+    "description": "Upload video files and get a unique identifier for later processing.\n\nThis tool accepts MP4 video file uploads and returns a unique upload ID that can be used with the transcription tool. Uploaded files are temporarily stored and automatically cleaned up after 24 hours.\n\nPerfect for Azure AI Foundry agent workflows where users need to upload videos before processing.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Andy Cohen",
+      "email": "andy@iamandycohen.com"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://video-transcribe-api.calmocean-ce622c12.eastus2.azurecontainerapps.io",
+      "description": "Production API server"
+    }
+  ],
+  "paths": {
+    "/upload": {
+      "post": {
+        "summary": "Upload Video File",
+        "description": "Upload an MP4 video file and receive a unique identifier for later processing.\n\nThis endpoint:\n- Accepts MP4 video files up to 500MB\n- Returns a unique upload ID\n- Stores the file temporarily (24 hour expiration)\n- The upload ID can be used with the transcribe tool\n\nWorkflow:\n1. Upload video file using this endpoint\n2. Get upload ID from response\n3. Use upload ID with transcribe tool to process the video",
+        "operationId": "upload_video",
+        "tags": ["Upload"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["video"],
+                "properties": {
+                  "video": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "MP4 video file to upload (max 500MB)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Video uploaded successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "uploadId": {
+                      "type": "string",
+                      "description": "Unique identifier for the uploaded video",
+                      "example": "123e4567-e89b-12d3-a456-426614174000"
+                    },
+                    "originalName": {
+                      "type": "string",
+                      "description": "Original filename of the uploaded video",
+                      "example": "meeting-recording.mp4"
+                    },
+                    "size": {
+                      "type": "number",
+                      "description": "File size in bytes",
+                      "example": 15728640
+                    },
+                    "uploadedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "Timestamp when the file was uploaded",
+                      "example": "2024-09-17T15:30:45.123Z"
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "Timestamp when the file will be automatically deleted",
+                      "example": "2024-09-18T15:30:45.123Z"
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "Success message with next steps",
+                      "example": "Video uploaded successfully. Use the uploadId with /transcribe endpoint to process."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid file or missing video",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "examples": [
+                        "No video file uploaded",
+                        "Only MP4 files are allowed",
+                        "File size exceeds 500MB limit"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized - Valid authentication required"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "File too large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "File size exceeds maximum limit of 500MB"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "Upload failed due to server error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "AzureManagedIdentity": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API key for direct REST API access"
+      },
+      "AzureManagedIdentity": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Azure Managed Identity token (automatically handled by Azure AI Foundry)"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Upload",
+      "description": "Video file upload operations"
+    }
+  ]
+}
