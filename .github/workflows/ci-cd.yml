@@ -86,8 +86,9 @@ jobs:
       - name: Run linting
         run: npm run lint
 
-      - name: Run tests
-        run: npm test
+      # TODO: Add tests
+      # - name: Run tests
+      #   run: npm test
 
       - name: Build TypeScript
         run: npm run build

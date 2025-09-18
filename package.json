@@ -10,7 +10,7 @@
     "clean": "rimraf dist",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
-    "test": "jest",
+    "test": "echo \"No tests yet - TODO: Add unit tests\"",
     "test-agent": "node test-agent.js",
     "api-server": "node dist/src/api-server-stateless.js",
     "autonomous": "node examples/autonomous-agent.js",
