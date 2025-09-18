@@ -1,0 +1,372 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  IMAGE_NAME: video-transcribe
+
+jobs:
+  # Version calculation and validation
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is-release: ${{ steps.version.outputs.is-release }}
+      image-tag: ${{ steps.version.outputs.image-tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calculate version
+        id: version
+        run: |
+          # Get package.json version
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          
+          # Determine version and image tag based on context
+          if [[ $GITHUB_REF == refs/tags/v* ]]; then
+            # Tagged release
+            VERSION=${GITHUB_REF#refs/tags/v}
+            IMAGE_TAG=${VERSION}
+            IS_RELEASE=true
+            echo "Tagged release: $VERSION"
+          elif [[ $GITHUB_REF == refs/heads/main ]]; then
+            # Main branch - stable build
+            VERSION="${PACKAGE_VERSION}-build.${GITHUB_RUN_NUMBER}"
+            IMAGE_TAG="latest"
+            IS_RELEASE=false
+            echo "Main branch build: $VERSION"
+          elif [[ $GITHUB_REF == refs/heads/develop ]]; then
+            # Develop branch - beta build
+            VERSION="${PACKAGE_VERSION}-beta.${GITHUB_RUN_NUMBER}"
+            IMAGE_TAG="beta"
+            IS_RELEASE=false
+            echo "Develop branch build: $VERSION"
+          else
+            # Feature branch or PR
+            BRANCH_NAME=${GITHUB_REF#refs/heads/}
+            BRANCH_NAME=${BRANCH_NAME//[^a-zA-Z0-9-]/-}
+            VERSION="${PACKAGE_VERSION}-${BRANCH_NAME}.${GITHUB_RUN_NUMBER}"
+            IMAGE_TAG="${BRANCH_NAME}-${GITHUB_RUN_NUMBER}"
+            IS_RELEASE=false
+            echo "Feature branch build: $VERSION"
+          fi
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "is-release=$IS_RELEASE" >> $GITHUB_OUTPUT
+          echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          
+          echo "Final version: $VERSION"
+          echo "Image tag: $IMAGE_TAG"
+
+  # Build and test
+  build:
+    runs-on: ubuntu-latest
+    needs: version
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Validate build artifacts
+        run: |
+          test -f dist/src/api-server-stateless.js
+          test -f dist/src/version.js
+          echo "Build artifacts validated"
+
+  # Build Docker image in Azure ACR (matches working bash script)
+  docker:
+    runs-on: ubuntu-latest
+    needs: [version, build]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Build and push Docker image to ACR
+        run: |
+          # Build image in Azure ACR with version info (same as bash script)
+          az acr build \
+            --registry ${{ secrets.ACR_NAME }} \
+            --image ${{ env.IMAGE_NAME }}:${{ needs.version.outputs.image-tag }} \
+            --build-arg BUILD_VERSION=${{ needs.version.outputs.version }} \
+            --build-arg BUILD_TIMESTAMP=${{ github.event.head_commit.timestamp }} \
+            --build-arg GIT_COMMIT=${{ github.sha }} \
+            --build-arg GIT_BRANCH=${{ github.ref_name }} \
+            --build-arg IMAGE_TAG=${{ needs.version.outputs.image-tag }} \
+            .
+          
+          echo "✅ Image built: ${{ secrets.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ needs.version.outputs.image-tag }}"
+
+  # Deploy to Azure (only for main branch and releases)
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [version, docker]
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set deployment variables
+        run: |
+          echo "SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+          echo "RESOURCE_GROUP=${{ secrets.AZURE_RESOURCE_GROUP }}" >> $GITHUB_ENV
+          echo "LOCATION=eastus2" >> $GITHUB_ENV
+          echo "CONTAINER_APP_NAME=video-transcribe-api" >> $GITHUB_ENV
+          echo "ENVIRONMENT_NAME=transcribe-env" >> $GITHUB_ENV
+          echo "IDENTITY_NAME=transcribe-identity" >> $GITHUB_ENV
+          echo "ACR_NAME=${{ secrets.ACR_NAME }}" >> $GITHUB_ENV
+          echo "IMAGE_NAME=video-transcribe" >> $GITHUB_ENV
+
+      - name: Set active subscription
+        run: |
+          az account set --subscription ${{ env.SUBSCRIPTION_ID }}
+
+      - name: Ensure infrastructure exists
+        run: |
+          # Create resource group if it doesn't exist
+          echo "📦 Ensuring resource group exists..."
+          az group create --name ${{ env.RESOURCE_GROUP }} --location ${{ env.LOCATION }}
+
+          # Create Container Registry if it doesn't exist (matches bash script)
+          echo "🏗️ Creating Azure Container Registry..."
+          if ! az acr show --name ${{ env.ACR_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} > /dev/null 2>&1; then
+            echo "Creating new Container Registry..."
+            az acr create --resource-group ${{ env.RESOURCE_GROUP }} --name ${{ env.ACR_NAME }} --sku Basic --location ${{ env.LOCATION }} --admin-enabled true
+          else
+            echo "✅ Container Registry already exists"
+          fi
+
+          # Create Container Apps environment if it doesn't exist
+          echo "🌐 Creating Container Apps environment..."
+          if ! az containerapp env show --name ${{ env.ENVIRONMENT_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} > /dev/null 2>&1; then
+            echo "Creating new Container Apps environment..."
+            az containerapp env create \
+              --name ${{ env.ENVIRONMENT_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --location ${{ env.LOCATION }}
+          else
+            echo "✅ Container Apps environment already exists"
+          fi
+
+          # Create managed identity for ACR access
+          echo "🔐 Creating managed identity..."
+          IDENTITY_ID=$(az identity create \
+            --name ${{ env.IDENTITY_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --location ${{ env.LOCATION }} \
+            --query id -o tsv)
+
+          # Assign ACR pull permission to managed identity
+          echo "🔑 Assigning ACR permissions..."
+          ACR_ID=$(az acr show --name ${{ env.ACR_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query id -o tsv)
+          PRINCIPAL_ID=$(az identity show --name ${{ env.IDENTITY_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query principalId -o tsv)
+          
+          az role assignment create \
+            --assignee $PRINCIPAL_ID \
+            --scope $ACR_ID \
+            --role AcrPull || echo "Role assignment already exists"
+
+      - name: Deploy or update Container App
+        run: |
+          FULL_IMAGE_NAME="${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ needs.version.outputs.image-tag }}"
+          echo "🏷️ Using image: $FULL_IMAGE_NAME"
+
+          # Check if Container App exists
+          if az containerapp show --name ${{ env.CONTAINER_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} > /dev/null 2>&1; then
+            echo "🔄 Updating existing Container App..."
+            
+            # Update secrets
+            az containerapp secret set \
+              --name ${{ env.CONTAINER_APP_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --secrets \
+                azure-api-key="${{ secrets.AZURE_API_KEY }}" \
+                api-key="${{ secrets.API_KEY }}"
+            
+            # Update the container app
+            az containerapp update \
+              --name ${{ env.CONTAINER_APP_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --image $FULL_IMAGE_NAME \
+              --set-env-vars \
+                AZURE_SUBSCRIPTION_ID="${{ env.SUBSCRIPTION_ID }}" \
+                AZURE_RESOURCE_GROUP="${{ env.RESOURCE_GROUP }}" \
+                AZURE_ACCOUNT_NAME="${{ secrets.AZURE_ACCOUNT_NAME }}" \
+                AZURE_AI_FOUNDRY_ENDPOINT="${{ secrets.AZURE_AI_FOUNDRY_ENDPOINT }}" \
+                AZURE_OPENAI_ENDPOINT="${{ secrets.AZURE_OPENAI_ENDPOINT }}" \
+                AZURE_AI_SERVICES_ENDPOINT="${{ secrets.AZURE_AI_SERVICES_ENDPOINT }}" \
+                AZURE_SPEECH_TO_TEXT_ENDPOINT="${{ secrets.AZURE_SPEECH_TO_TEXT_ENDPOINT }}" \
+                GPT_TRANSCRIBE_MODEL="${{ secrets.GPT_TRANSCRIBE_MODEL }}" \
+                GPT_AUDIO_MODEL="${{ secrets.GPT_AUDIO_MODEL }}" \
+                BUILD_VERSION="${{ needs.version.outputs.version }}" \
+                BUILD_TIMESTAMP="${{ github.event.head_commit.timestamp }}" \
+                GIT_COMMIT="${{ github.sha }}" \
+                GIT_BRANCH="${{ github.ref_name }}" \
+                IMAGE_TAG="${{ needs.version.outputs.image-tag }}" \
+                ENVIRONMENT=production \
+                PORT=3000 \
+                LOG_LEVEL=info \
+                API_KEY=secretref:api-key
+          else
+            echo "🚀 Creating new Container App..."
+            IDENTITY_ID="/subscriptions/${{ env.SUBSCRIPTION_ID }}/resourcegroups/${{ env.RESOURCE_GROUP }}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/${{ env.IDENTITY_NAME }}"
+            
+            az containerapp create \
+              --name ${{ env.CONTAINER_APP_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --environment ${{ env.ENVIRONMENT_NAME }} \
+              --image $FULL_IMAGE_NAME \
+              --user-assigned $IDENTITY_ID \
+              --registry-server ${{ env.ACR_NAME }}.azurecr.io \
+              --registry-identity $IDENTITY_ID \
+              --target-port 3000 \
+              --ingress external \
+              --min-replicas 1 \
+              --max-replicas 10 \
+              --cpu 1 \
+              --memory 2Gi \
+              --env-vars \
+                AZURE_SUBSCRIPTION_ID="${{ env.SUBSCRIPTION_ID }}" \
+                AZURE_RESOURCE_GROUP="${{ env.RESOURCE_GROUP }}" \
+                AZURE_ACCOUNT_NAME="${{ secrets.AZURE_ACCOUNT_NAME }}" \
+                AZURE_AI_FOUNDRY_ENDPOINT="${{ secrets.AZURE_AI_FOUNDRY_ENDPOINT }}" \
+                AZURE_OPENAI_ENDPOINT="${{ secrets.AZURE_OPENAI_ENDPOINT }}" \
+                AZURE_AI_SERVICES_ENDPOINT="${{ secrets.AZURE_AI_SERVICES_ENDPOINT }}" \
+                AZURE_SPEECH_TO_TEXT_ENDPOINT="${{ secrets.AZURE_SPEECH_TO_TEXT_ENDPOINT }}" \
+                GPT_TRANSCRIBE_MODEL="${{ secrets.GPT_TRANSCRIBE_MODEL }}" \
+                GPT_AUDIO_MODEL="${{ secrets.GPT_AUDIO_MODEL }}" \
+                BUILD_VERSION="${{ needs.version.outputs.version }}" \
+                BUILD_TIMESTAMP="${{ github.event.head_commit.timestamp }}" \
+                GIT_COMMIT="${{ github.sha }}" \
+                GIT_BRANCH="${{ github.ref_name }}" \
+                IMAGE_TAG="${{ needs.version.outputs.image-tag }}" \
+                ENVIRONMENT=production \
+                PORT=3000 \
+                LOG_LEVEL=info \
+                API_KEY=secretref:api-key \
+              --secrets \
+                azure-api-key="${{ secrets.AZURE_API_KEY }}" \
+                api-key="${{ secrets.API_KEY }}"
+          fi
+
+      - name: Get application URL and verify deployment
+        run: |
+          # Get the application URL
+          APP_URL=$(az containerapp show \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          
+          echo "🌐 Application URL: https://$APP_URL"
+          echo "APP_URL=https://$APP_URL" >> $GITHUB_ENV
+          
+          # Wait for deployment to complete
+          echo "⏳ Waiting for container to start..."
+          sleep 30
+          
+          # Check health endpoint
+          echo "🔍 Verifying deployment..."
+          HEALTH_URL="https://$APP_URL/health"
+          echo "Health endpoint: $HEALTH_URL"
+          
+          # Retry health check up to 5 times
+          for i in {1..5}; do
+            echo "Health check attempt $i/5..."
+            if RESPONSE=$(curl -s "$HEALTH_URL" --max-time 30); then
+              echo "Health response: $RESPONSE"
+              
+              # Verify version in response
+              DEPLOYED_VERSION=$(echo "$RESPONSE" | jq -r '.version // "unknown"')
+              echo "Deployed version: $DEPLOYED_VERSION"
+              echo "Expected version: ${{ needs.version.outputs.version }}"
+              
+              if [ "$DEPLOYED_VERSION" = "${{ needs.version.outputs.version }}" ]; then
+                echo "✅ Deployment successful - version matches!"
+                echo "🏥 Health Check: $HEALTH_URL"
+                echo "📋 API Docs: https://$APP_URL/docs"
+                exit 0
+              else
+                echo "⚠️ Version mismatch, but service is responding"
+                echo "This might be expected during deployment transition"
+              fi
+            else
+              echo "❌ Health check failed, retrying in 10 seconds..."
+              sleep 10
+            fi
+          done
+          
+          echo "❌ Deployment verification failed after 5 attempts"
+          echo "Manual verification required: $HEALTH_URL"
+          exit 1
+
+  # Create GitHub release (only for version tags)
+  release:
+    runs-on: ubuntu-latest
+    needs: [version, deploy]
+    if: startsWith(github.ref, 'refs/tags/v') && needs.version.outputs.is-release == 'true'
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          body: |
+            ## Video Transcription Agent ${{ github.ref_name }}
+            
+            ### 🚀 Deployment Information
+            - **Version**: ${{ needs.version.outputs.version }}
+            - **Build**: ${{ github.run_number }}
+            - **Commit**: ${{ github.sha }}
+            - **Environment**: Production
+            
+            ### 📋 What's Changed
+            See commit history for detailed changes.
+            
+            ### 🔗 Links
+            - **API Health**: https://video-transcribe-api.calmocean-ce622c12.eastus2.azurecontainerapps.io/health
+            - **API Docs**: https://video-transcribe-api.calmocean-ce622c12.eastus2.azurecontainerapps.io/docs
+            - **Docker Image**: ghcr.io/${{ github.repository }}:${{ needs.version.outputs.image-tag }}
+          draft: false
+          prerelease: false

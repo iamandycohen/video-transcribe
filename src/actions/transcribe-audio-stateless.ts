@@ -50,28 +50,27 @@ export class TranscribeAudioStatelessAction {
         return;
       }
 
-      if (!state.audio_url) {
+      // Check if extract_audio step was completed
+      const extractResult = this.getStateStore().getStepResult(state, 'extract_audio');
+      if (!extractResult || !extractResult.audio_url) {
         res.status(400).json({
           success: false,
           error: 'No audio reference found in workflow state',
           next_action: 'Extract audio first using POST /extract-audio with this workflow_id',
           workflow_id,
           current_state: {
-            video_url: state.video_url,
-            audio_url: state.audio_url,
-            current_step: state.current_step
+            extract_audio_status: this.getStateStore().getStepStatus(state, 'extract_audio'),
+            transcribe_audio_status: this.getStateStore().getStepStatus(state, 'transcribe_audio')
           }
         });
         return;
       }
 
-      // Update state - mark current step
-      await this.getStateStore().updateState(workflow_id, {
-        current_step: 'transcribe-audio'
-      });
+      // Start transcribe audio step
+      await this.getStateStore().startStep(workflow_id, 'transcribe_audio');
 
-      // Get audio file path from reference in state
-      const audio_url = state.audio_url;
+      // Get audio file path from extract step result
+      const audio_url = extractResult.audio_url;
       const audioFilePath = this.getReferenceService().getFilePathFromUrl(audio_url);
 
       // Verify audio file exists
@@ -105,10 +104,15 @@ export class TranscribeAudioStatelessAction {
       // Clean up audio reference (workflow cleanup)
       const cleanupResult = await this.getReferenceService().cleanup(audio_url);
 
-      // Update agent state with transcription results
-      await this.getStateStore().updateState(workflow_id, {
+      // Complete transcribe audio step with results
+      await this.getStateStore().completeStep(workflow_id, 'transcribe_audio', {
         raw_text: transcriptionResult.rawText,
-        current_step: 'transcribe-audio-completed'
+        confidence: transcriptionResult.confidence,
+        language: transcriptionResult.language,
+        segments: transcriptionResult.segments,
+        duration: transcriptionResult.duration,
+        transcription_time: transcriptionResult.transcriptionTime,
+        audio_cleaned: cleanupResult.success
       });
 
       logger.info(`Audio transcribed successfully: workflow=${workflow_id}, text_length=${transcriptionResult.rawText?.length} by ${authMethod}`);
@@ -132,9 +136,10 @@ export class TranscribeAudioStatelessAction {
       try {
         const { workflow_id } = req.body;
         if (workflow_id) {
-          await this.getStateStore().updateState(workflow_id, {
-            status: 'failed',
-            current_step: 'transcribe-audio-failed'
+          await this.getStateStore().failStep(workflow_id, 'transcribe_audio', {
+            message: error instanceof Error ? error.message : 'Unknown transcription error',
+            code: 'TRANSCRIBE_AUDIO_FAILED',
+            details: error
           });
         }
       } catch (stateError) {

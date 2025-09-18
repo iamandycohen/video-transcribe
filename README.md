@@ -14,6 +14,9 @@ An AI-powered TypeScript agent for transcribing MP4 video files using Azure AI s
 - 🔗 **Agent Integration**: Ready-to-use with LangChain, AutoGen, CrewAI, and other agent frameworks
 - 🌐 **API Server Mode**: HTTP API for multi-agent architectures
 - 🤖 **Autonomous Mode**: Self-running agent that monitors directories and processes videos automatically
+- ⚡ **Step-Based Workflow Tracking**: Advanced workflow state management with detailed step status, timing, and error tracking
+- 🔄 **Individual Step Retry**: Retry failed steps without restarting entire workflows
+- 🎯 **Modular Architecture**: Organized workflow steps (processing vs analysis) for easy maintenance and extension
 
 ## Prerequisites
 
@@ -174,13 +177,23 @@ Human-readable format with:
 
 ## Architecture
 
-The application is structured into several key components:
+The application uses a **step-based workflow architecture** with modular components:
 
-- **TranscriptionAgent**: Main orchestrator that coordinates the entire process
+### Core Components:
+- **Workflow State Management**: Advanced step-based tracking with status, timing, and error details
+- **Stateless Actions**: Individual atomic operations (upload, extract, transcribe, analyze)
+- **Service Layer**: Reusable business logic separate from API concerns
+- **Configuration Management**: Environment-based settings for models and endpoints
+
+### Workflow Steps:
+- **Processing Steps**: upload-video → extract-audio → transcribe-audio → enhance-transcription
+- **Analysis Steps**: summarize-content, extract-key-points, analyze-sentiment, identify-topics
+
+### Key Services:
 - **AudioExtractorService**: Handles MP4 audio extraction using FFmpeg
 - **TranscriptionService**: Manages Azure Speech-to-Text integration
 - **GPTEnhancementService**: Provides AI-powered transcription enhancement
-- **AzureClientService**: Manages Azure service connections
+- **AgentStateStore**: Manages workflow state with automatic legacy migration
 
 ## Error Handling
 
@@ -208,12 +221,28 @@ The application includes comprehensive error handling:
 
 ```
 src/
-├── agent/              # Main transcription agent
-├── cli/                # Command-line interface
-├── config/             # Configuration management
-├── services/           # Core services (Azure, audio, etc.)
-└── utils/              # Utilities (logging, etc.)
+├── actions/            # Stateless API action handlers
+├── workflow-steps/     # Modular step type definitions
+│   ├── base/          # Common step interfaces
+│   ├── processing/    # Video/audio processing steps
+│   └── analysis/      # AI analysis steps
+├── services/          # Core business logic services
+├── lib/               # Reusable utility libraries
+│   ├── auth/         # Authentication helpers
+│   ├── responses/    # Standardized API responses
+│   ├── storage/      # File upload/cleanup management
+│   └── validation/   # Input validation utilities
+├── config/           # Configuration management
+├── middleware/       # Express middleware
+├── cli/              # Command-line interface
+└── utils/            # Utilities (logging, etc.)
 ```
+
+### Key Folders:
+- **`workflow-steps/`**: Type-safe step definitions organized by category
+- **`actions/`**: HTTP API endpoints that orchestrate workflow steps
+- **`services/`**: Pure TypeScript business logic (reusable across interfaces)
+- **`lib/`**: Shared utilities for common patterns
 
 ## Deployment to Azure
 

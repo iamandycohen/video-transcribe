@@ -50,28 +50,27 @@ export class ExtractAudioStatelessAction {
         return;
       }
 
-      if (!state.video_url) {
+      // Check if upload_video step was completed
+      const uploadResult = this.getStateStore().getStepResult(state, 'upload_video');
+      if (!uploadResult || !uploadResult.video_url) {
         res.status(400).json({
           success: false,
           error: 'No video reference found in workflow state',
           next_action: 'Upload a video first using POST /upload-video with this workflow_id',
           workflow_id,
           current_state: {
-            video_url: state.video_url,
-            audio_url: state.audio_url,
-            current_step: state.current_step
+            upload_video_status: this.getStateStore().getStepStatus(state, 'upload_video'),
+            extract_audio_status: this.getStateStore().getStepStatus(state, 'extract_audio')
           }
         });
         return;
       }
 
-      // Update state - mark current step
-      await this.getStateStore().updateState(workflow_id, {
-        current_step: 'extract-audio'
-      });
+      // Start extract audio step
+      await this.getStateStore().startStep(workflow_id, 'extract_audio');
 
-      // Get video file from reference in state
-      const video_url = state.video_url;
+      // Get video file from upload step result
+      const video_url = uploadResult.video_url;
       const { stream: videoBuffer } = await this.getReferenceService().getFileStream(video_url);
 
       // Extract audio using temp file
@@ -91,10 +90,15 @@ export class ExtractAudioStatelessAction {
       // Clean up temporary audio file from extractor
       await this.audioExtractor.cleanup(audioResult.audioFilePath);
 
-      // Update agent state with audio reference
-      await this.getStateStore().updateState(workflow_id, {
+      // Get audio file info for result
+      const audioFileInfo = await this.getReferenceService().getFileInfo(audio_url);
+
+      // Complete extract audio step with results
+      await this.getStateStore().completeStep(workflow_id, 'extract_audio', {
         audio_url,
-        current_step: 'extract-audio-completed'
+        extraction_time: 0, // Duration would need to be calculated separately if needed
+        video_cleaned: cleanupResult.success,
+        audio_size: audioFileInfo?.size || 0
       });
 
       logger.info(`Audio extracted successfully: workflow=${workflow_id}, audio_reference=${audio_reference} by ${authMethod}`);
@@ -109,13 +113,14 @@ export class ExtractAudioStatelessAction {
       });
 
     } catch (error) {
-      // Update state to mark failure
+      // Fail the extract audio step
       try {
         const { workflow_id } = req.body;
         if (workflow_id) {
-          await this.getStateStore().updateState(workflow_id, {
-            status: 'failed',
-            current_step: 'extract-audio-failed'
+          await this.getStateStore().failStep(workflow_id, 'extract_audio', {
+            message: error instanceof Error ? error.message : 'Unknown extraction error',
+            code: 'EXTRACT_AUDIO_FAILED',
+            details: error
           });
         }
       } catch (stateError) {

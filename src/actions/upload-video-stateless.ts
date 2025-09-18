@@ -37,21 +37,25 @@ export class UploadVideoStatelessAction {
 
       // Create or use existing workflow
       const workflowId = workflow_id || await this.getStateStore().createWorkflow();
+      const startTime = Date.now();
       
-      // Update state - mark as processing
-      await this.getStateStore().updateState(workflowId, {
-        status: 'processing',
-        current_step: 'upload-video'
-      });
+      // Start upload step
+      await this.getStateStore().startStep(workflowId, 'upload_video');
 
       // Download and store video by reference
       const video_url = await this.getReferenceService().storeFromUrl(source_url, workflowId);
       const video_reference = `video_${workflowId}_${Date.now()}`;
 
-      // Update agent state with video reference
-      await this.getStateStore().updateState(workflowId, {
+      // Get file info for result
+      const fileExists = await this.getReferenceService().exists(video_url);
+      const fileInfo = await this.getReferenceService().getFileInfo(video_url);
+      
+      // Complete upload step with results
+      await this.getStateStore().completeStep(workflowId, 'upload_video', {
         video_url,
-        current_step: 'upload-video-completed'
+        size: fileInfo?.size || 0,
+        format: source_url.split('.').pop()?.toLowerCase() || 'mp4',
+        source_url
       });
 
       logger.info(`Video uploaded successfully: workflow=${workflowId}, video_reference=${video_reference} by ${authMethod}`);
@@ -65,6 +69,20 @@ export class UploadVideoStatelessAction {
       });
 
     } catch (error) {
+      // Fail the upload step if workflow exists
+      try {
+        const { workflow_id } = req.body;
+        if (workflow_id) {
+          await this.getStateStore().failStep(workflow_id, 'upload_video', {
+            message: error instanceof Error ? error.message : 'Unknown upload error',
+            code: 'UPLOAD_FAILED',
+            details: error
+          });
+        }
+      } catch (stateError) {
+        logger.error('Failed to update state on upload error:', stateError);
+      }
+
       ApiResponseHandler.handleError(error, res, 'Upload video (stateless)');
     }
   }

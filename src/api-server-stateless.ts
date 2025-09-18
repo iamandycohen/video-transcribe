@@ -5,6 +5,7 @@
 
 import express from 'express';
 import cors from 'cors';
+import { getVersionInfo } from './version';
 import multer from 'multer';
 import { logger } from './utils/logger';
 import { requireAuth, allowAnonymous } from './middleware/multi-auth';
@@ -34,19 +35,13 @@ const authMiddleware = requireAuth;
 
 // Health check endpoint (no auth required)
 app.get('/health', (req, res) => {
-  // Version info embedded at build time via environment variables
-  const buildInfo = {
-    version: process.env.BUILD_VERSION || '2.0.0-stateless-dev',
-    buildTime: process.env.BUILD_TIMESTAMP || new Date().toISOString(),
-    gitCommit: process.env.GIT_COMMIT || 'unknown',
-    imageTag: process.env.IMAGE_TAG || 'latest',
-    architecture: 'stateless-workflow-managed'
-  };
+  const buildInfo = getVersionInfo();
   
   res.json({
     status: 'healthy',
     service: 'video-transcription-agent-stateless',
     timestamp: new Date().toISOString(),
+    architecture: 'stateless-workflow-managed',
     ...buildInfo
   });
 });

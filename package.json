@@ -12,7 +12,11 @@
     "test": "jest",
     "test-agent": "node test-agent.js",
     "api-server": "node dist/src/api-server-stateless.js",
-    "autonomous": "node examples/autonomous-agent.js"
+    "autonomous": "node examples/autonomous-agent.js",
+    "version:check": "node -e \"console.log('Current version:', require('./package.json').version)\"",
+    "version:patch": "npm version patch --no-git-tag-version",
+    "version:minor": "npm version minor --no-git-tag-version",
+    "version:major": "npm version major --no-git-tag-version"
   },
   "keywords": [
     "typescript",

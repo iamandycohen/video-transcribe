@@ -42,7 +42,7 @@ export const azureConfig: AzureConfig = {
   },
   models: {
     gptTranscribe: process.env.GPT_TRANSCRIBE_MODEL || 'gpt-4o-transcribe',
-    gptAudio: process.env.GPT_AUDIO_MODEL || 'gpt-4o-text'
+    gptAudio: process.env.GPT_AUDIO_MODEL || 'gpt-4o'
   },
   app: {
     logLevel: process.env.LOG_LEVEL || 'info',

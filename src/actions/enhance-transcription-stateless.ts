@@ -9,6 +9,7 @@ import { AuthUtils } from '../lib/auth/auth-utils';
 import { logger } from '../utils/logger';
 import { ServiceManager } from '../services/service-manager';
 import { EnhanceTranscriptionService } from '../services/enhance-transcription-service';
+import { azureConfig } from '../config/azure-config';
 
 export class EnhanceTranscriptionStatelessAction {
   private static getStateStore() {
@@ -52,17 +53,17 @@ export class EnhanceTranscriptionStatelessAction {
       }
 
       // Use provided raw_text or get from state
-      const textToEnhance = raw_text || state.raw_text;
+      // Get text from transcribe_audio step result
+      const transcribeResult = this.getStateStore().getStepResult(state, 'transcribe_audio');
+      const textToEnhance = raw_text || transcribeResult?.raw_text;
       
       if (!textToEnhance) {
         ApiResponseHandler.validationError(res, 'raw_text is required (either in request or workflow state)');
         return;
       }
 
-      // Update state - mark current step
-      await this.getStateStore().updateState(workflow_id, {
-        current_step: 'enhance-transcription'
-      });
+      // Start enhance transcription step
+      await this.getStateStore().startStep(workflow_id, 'enhance_transcription');
 
       // Enhance transcription with GPT
       const enhancementResult = await this.getService().enhanceTranscription({
@@ -78,10 +79,11 @@ export class EnhanceTranscriptionStatelessAction {
         return;
       }
 
-      // Update agent state with enhanced text
-      await this.getStateStore().updateState(workflow_id, {
+      // Complete enhance transcription step with results
+      await this.getStateStore().completeStep(workflow_id, 'enhance_transcription', {
         enhanced_text: enhancementResult.enhancedText,
-        current_step: 'enhance-transcription-completed'
+        enhancement_time: enhancementResult.enhancementTime || 0,
+        model_used: azureConfig.models.gptTranscribe
       });
 
       logger.info(`Transcription enhanced successfully: workflow=${workflow_id}, enhanced_length=${enhancementResult.enhancedText?.length} by ${authMethod}`);
@@ -100,9 +102,10 @@ export class EnhanceTranscriptionStatelessAction {
       try {
         const { workflow_id } = req.body;
         if (workflow_id) {
-          await this.getStateStore().updateState(workflow_id, {
-            status: 'failed',
-            current_step: 'enhance-transcription-failed'
+          await this.getStateStore().failStep(workflow_id, 'enhance_transcription', {
+            message: error instanceof Error ? error.message : 'Unknown enhancement error',
+            code: 'ENHANCE_TRANSCRIPTION_FAILED',
+            details: error
           });
         }
       } catch (stateError) {

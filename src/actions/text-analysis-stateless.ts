@@ -24,7 +24,13 @@ abstract class BaseTextAnalysisAction {
     if (text) return text;
     
     const state = await this.getStateStore().getState(workflow_id);
-    return state?.enhanced_text || state?.raw_text || null;
+    if (!state) return null;
+    
+    // Try to get enhanced text first, then raw text from step results
+    const enhanceResult = this.getStateStore().getStepResult(state, 'enhance_transcription');
+    const transcribeResult = this.getStateStore().getStepResult(state, 'transcribe_audio');
+    
+    return enhanceResult?.enhanced_text || transcribeResult?.raw_text || null;
   }
 
   protected static async handleTextAnalysis(
@@ -63,10 +69,7 @@ abstract class BaseTextAnalysisAction {
         return;
       }
 
-      // Update state - mark current step
-      await this.getStateStore().updateState(workflow_id, {
-        current_step: actionName
-      });
+      // No need to track global current step - each step manages its own status
 
       // Perform analysis
       const result = await analysisFunction(textToAnalyze);
@@ -81,9 +84,7 @@ abstract class BaseTextAnalysisAction {
       }
 
       // Update agent state with analysis result
-      const stateUpdate: any = {
-        current_step: `${actionName}-completed`
-      };
+      const stateUpdate: any = {};
       stateUpdate[stateKey] = this.extractResultValue(result);
 
       await this.getStateStore().updateState(workflow_id, stateUpdate);
@@ -104,9 +105,10 @@ abstract class BaseTextAnalysisAction {
       try {
         const { workflow_id } = req.body;
         if (workflow_id) {
-          await this.getStateStore().updateState(workflow_id, {
-            status: 'failed',
-            current_step: `${actionName}-failed`
+          await this.getStateStore().failStep(workflow_id, actionName, {
+            message: error instanceof Error ? error.message : `Unknown ${actionName} error`,
+            code: `${actionName.toUpperCase()}_FAILED`,
+            details: error
           });
         }
       } catch (stateError) {

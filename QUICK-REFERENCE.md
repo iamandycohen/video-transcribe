@@ -1,7 +1,10 @@
 # 🚀 Quick Reference - Video Transcription Agent
 
 ## 📍 Current Location
-`C:\code\iamandycohen\video-transcribe`
+`C:\code\video-transcribe`
+
+## ✨ Latest Update
+**Step-Based Workflow Architecture**: Enhanced state management with individual step tracking, retry capability, and automatic legacy migration.
 
 ## ⚡ Quick Commands
 
@@ -22,11 +25,15 @@ npm run api-server
 
 ## 🎯 What This Agent Does
 
+**Step-Based Workflow with State Tracking:**
+
 Input: MP4 video file
 ↓
-Audio extraction (FFmpeg)
+**Step 1**: Upload Video (with status tracking)
+↓ 
+**Step 2**: Audio extraction (FFmpeg) → auto-cleanup video
 ↓
-Transcription (Azure Speech-to-Text)
+**Step 3**: Transcription (Azure Speech-to-Text) → auto-cleanup audio
 ↓
 AI Enhancement (Your GPT models: gpt-4o-transcribe, gpt-audio)
 ↓
