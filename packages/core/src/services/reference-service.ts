@@ -216,6 +216,58 @@ export class ReferenceService {
   }
 
   /**
+   * Download file from remote URL with progress reporting
+   */
+  async storeFromUrlWithProgress(
+    sourceUrl: string, 
+    workflow_id: string,
+    onProgress?: (downloaded: number, total: number, percentage: number) => void
+  ): Promise<string> {
+    try {
+      logger.info(`Downloading file from URL: ${sourceUrl}`);
+      
+      const response = await fetch(sourceUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to download: ${response.status} ${response.statusText}`);
+      }
+      
+      const contentLength = parseInt(response.headers.get('content-length') || '0', 10);
+      const originalName = this.getFileNameFromUrl(sourceUrl);
+      
+      if (!response.body) {
+        throw new Error('Response body is null');
+      }
+      
+      // Stream the download with progress tracking
+      const reader = response.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let downloaded = 0;
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+        
+        chunks.push(value);
+        downloaded += value.length;
+        
+        if (onProgress && contentLength > 0) {
+          const percentage = Math.round((downloaded / contentLength) * 100);
+          onProgress(downloaded, contentLength, percentage);
+        }
+      }
+      
+      // Combine all chunks
+      const buffer = Buffer.concat(chunks);
+      
+      return await this.storeVideo(buffer, originalName, workflow_id);
+    } catch (error) {
+      logger.error(`Failed to store from URL ${sourceUrl}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Clean up all files for a workflow
    */
   async cleanupWorkflow(workflow_id: string): Promise<{ filesDeleted: number; spaceFreed: number }> {

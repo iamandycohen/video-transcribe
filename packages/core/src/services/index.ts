@@ -16,6 +16,7 @@ export { EnhanceTranscriptionService } from './enhance-transcription-service';
 
 // Audio Services
 export { AudioExtractorService } from './audio-extractor';
+export { WhisperService } from './whisper-service';
 
 // Analysis Services
 export { AnalyzeSentimentService } from './analyze-sentiment-service';
@@ -36,6 +37,14 @@ export type {
 } from './agent-state-store';
 
 export type { FileReference } from './reference-service';
+
+export type { 
+  WhisperModel, 
+  WhisperQuality, 
+  WhisperOptions, 
+  WhisperResult, 
+  WhisperProgress 
+} from './whisper-service';
 
 // Re-export workflow types
 export type { 

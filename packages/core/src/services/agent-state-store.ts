@@ -22,6 +22,10 @@ export interface AgentState {
   created_at: string;
   last_updated: string;
   
+  // Original execution context (for resume functionality)
+  original_input?: string;
+  original_options?: Record<string, any>;
+  
   // No global current step - each step manages its own status
   
   // Step-based tracking

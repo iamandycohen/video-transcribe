@@ -51,5 +51,14 @@ export { azureConfig, validateConfig } from './config/azure-config';
 // Utilities
 export { logger } from './utils/logger';
 
+// Progress Types (for framework-agnostic progress reporting)
+export {
+  ProgressAggregator,
+  ProgressReporters,
+  ProgressEvent,
+  ProgressCallback,
+  ProgressType
+} from './types/progress';
+
 // Version
 export { getVersionInfo } from './version';

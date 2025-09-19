@@ -5,6 +5,7 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { azureConfig } from '../config/azure-config';
 import { logger } from '../utils/logger';
+import { ProgressCallback } from '../types/progress';
 
 // Import ffprobe-static with proper typing
 const ffprobeStatic = require('ffprobe-static') as { path: string };
@@ -23,6 +24,8 @@ export interface AudioExtractionResult {
   format: string;
 }
 
+// Remove old interface - now using unified ProgressCallback
+
 export class AudioExtractorService {
   private tempDir: string;
 
@@ -40,7 +43,10 @@ export class AudioExtractorService {
     }
   }
 
-  public async extractAudioFromMp4(mp4FilePath: string): Promise<AudioExtractionResult> {
+  public async extractAudioFromMp4(
+    mp4FilePath: string, 
+    onProgress?: ProgressCallback
+  ): Promise<AudioExtractionResult> {
     const startTime = Date.now();
     const audioFileName = `${uuidv4()}.wav`;
     const audioFilePath = path.join(this.tempDir, audioFileName);
@@ -58,7 +64,18 @@ export class AudioExtractorService {
         })
         .on('progress', (progress) => {
           if (progress.percent) {
-            logger.debug(`Audio extraction progress: ${Math.round(progress.percent)}%`);
+            const percent = Math.round(progress.percent);
+            logger.debug(`Audio extraction progress: ${percent}%`);
+            
+            // Report progress to callback if provided
+            if (onProgress) {
+              onProgress({
+                type: 'extraction',
+                progress: percent,
+                message: `🔧 Extracting audio: ${percent}%`,
+                timestamp: Date.now()
+              });
+            }
           }
         })
         .on('end', () => {

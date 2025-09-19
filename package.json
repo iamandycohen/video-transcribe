@@ -17,6 +17,7 @@
     "clean:server": "npm run clean -w packages/server",
     "lint": "npm run lint --workspaces",
     "test": "npm run test --workspaces",
+    "cli": "node packages/cli/dist/cli.js",
     "dev:cli": "npm run dev -w packages/cli",
     "dev:server": "npm run dev -w packages/server",
     "start:server": "npm run start -w packages/server",

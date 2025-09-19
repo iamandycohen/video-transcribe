@@ -20,6 +20,7 @@ import {
   AnalyzeSentimentStatelessAction,
   IdentifyTopicsStatelessAction
 } from './actions/text-analysis-stateless';
+// WhisperManagementAction removed - not needed for agent-facing API
 
 const app = express();
 
@@ -62,6 +63,8 @@ app.post('/extract-key-points', authMiddleware, (req, res) => ExtractKeyPointsSt
 app.post('/analyze-sentiment', authMiddleware, (req, res) => AnalyzeSentimentStatelessAction.handle(req, res));
 app.post('/identify-topics', authMiddleware, (req, res) => IdentifyTopicsStatelessAction.handle(req, res));
 
+// Whisper management removed from agent-facing API - use CLI for model management
+
 // API documentation endpoint
 app.get('/docs', (req, res) => {
   res.json({
@@ -77,7 +80,7 @@ app.get('/docs', (req, res) => {
       file_processing: {
         'POST /upload-video': 'Upload video from URL',
         'POST /extract-audio': 'Extract audio from video',
-        'POST /transcribe-audio': 'Transcribe audio to text'
+        'POST /transcribe-audio': 'Transcribe audio to text (Whisper default, Azure fallback)'
       },
       text_processing: {
         'POST /enhance-transcription': 'Enhance transcription with GPT',
@@ -85,7 +88,8 @@ app.get('/docs', (req, res) => {
         'POST /extract-key-points': 'Extract key points',
         'POST /analyze-sentiment': 'Analyze sentiment',
         'POST /identify-topics': 'Identify topics'
-      }
+      },
+      // Whisper model management available via CLI only
     },
     workflow_pattern: {
       input_format: '{ workflow_id: string, ...references }',
@@ -97,10 +101,11 @@ app.get('/docs', (req, res) => {
       '1. POST /workflow → { workflow_id }',
       '2. POST /upload-video { source_url, workflow_id } → { workflow_id, next_action }',
       '3. POST /extract-audio { workflow_id } → { workflow_id, cleanup } + video cleanup',
-      '4. POST /transcribe-audio { workflow_id } → { raw_text, cleanup } + audio cleanup',
+      '4. POST /transcribe-audio { workflow_id, quality?: "balanced" } → { raw_text, service_used: "whisper" }',
       '5. POST /enhance-transcription { workflow_id } → { enhanced_text }',
       '6. POST /summarize-content { workflow_id } → { summary }',
-      '// Steps 6-9 can run in parallel with enhanced_text from workflow state'
+      '// Steps 6-9 can run in parallel with enhanced_text from workflow state',
+      '// Whisper models auto-download as needed, Azure fallback on failure'
     ],
     authentication: 'X-API-Key header or query parameter'
   });

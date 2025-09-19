@@ -17,6 +17,7 @@ import { SummarizeContentService } from './summarize-content-service';
 import { ExtractKeyPointsService } from './extract-key-points-service';
 import { AnalyzeSentimentService } from './analyze-sentiment-service';
 import { IdentifyTopicsService } from './identify-topics-service';
+import { WhisperService } from './whisper-service';
 
 export class ServiceManager {
   private static instance: ServiceManager | null = null;
@@ -36,6 +37,7 @@ export class ServiceManager {
   private extractKeyPointsService?: ExtractKeyPointsService;
   private analyzeSentimentService?: AnalyzeSentimentService;
   private identifyTopicsService?: IdentifyTopicsService;
+  private whisperService?: WhisperService;
 
   private constructor() {
     // Lazy loading: Services are created only when first accessed
@@ -151,6 +153,13 @@ export class ServiceManager {
     return this.identifyTopicsService;
   }
 
+  public getWhisperService(): WhisperService {
+    if (!this.whisperService) {
+      this.whisperService = new WhisperService();
+    }
+    return this.whisperService;
+  }
+
   /**
    * Dispose all services and clear instance - useful for testing or clean shutdown
    * Forces all services to be recreated on next access
@@ -178,6 +187,7 @@ export class ServiceManager {
     if (this.extractKeyPointsService) loaded.push('ExtractKeyPointsService');
     if (this.analyzeSentimentService) loaded.push('AnalyzeSentimentService');
     if (this.identifyTopicsService) loaded.push('IdentifyTopicsService');
+    if (this.whisperService) loaded.push('WhisperService');
     return loaded;
   }
 }
