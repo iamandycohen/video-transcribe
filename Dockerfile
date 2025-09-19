@@ -11,19 +11,17 @@ ARG IMAGE_TAG=latest
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy workspace configuration
 COPY package*.json ./
+COPY packages/ ./packages/
 
-# Install all dependencies (including dev dependencies for TypeScript)
+# Install all dependencies (workspace aware)
 RUN npm ci
 
-# Copy source code
-COPY . .
-
-# Fix permissions for node_modules binaries
+# Fix permissions for node_modules binaries  
 RUN chmod +x ./node_modules/.bin/*
 
-# Build the application
+# Build all packages
 RUN npm run build
 
 # Production stage
@@ -39,14 +37,20 @@ WORKDIR /app
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nodejs -u 1001
 
-# Copy package files first
+# Copy workspace package files
 COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/packages/server/package.json ./packages/server/
+COPY --from=builder /app/packages/core/package.json ./packages/core/
 
-# Install only production dependencies
+# Create packages directory structure
+RUN mkdir -p packages/server packages/core
+
+# Copy built server application
+COPY --from=builder /app/packages/server/dist ./packages/server/dist
+COPY --from=builder /app/packages/core/dist ./packages/core/dist
+
+# Install only production dependencies for server package
 RUN npm ci --only=production && npm cache clean --force
-
-# Copy built application
-COPY --from=builder /app/dist ./dist
 
 # Set build info as environment variables in the container
 ENV BUILD_VERSION=${BUILD_VERSION}
@@ -70,4 +74,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
 # Start the stateless API server
-CMD ["node", "dist/src/api-server-stateless.js"]
+CMD ["node", "packages/server/dist/server.js"]

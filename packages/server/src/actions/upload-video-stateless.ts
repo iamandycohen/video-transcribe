@@ -4,10 +4,9 @@
  */
 
 import { Request, Response } from 'express';
+import { logger, ServiceManager } from '@video-transcribe/core';
 import { ApiResponseHandler } from '../lib/responses/api-responses';
 import { AuthUtils } from '../lib/auth/auth-utils';
-import { logger } from '../utils/logger';
-import { ServiceManager } from '../services/service-manager';
 
 export class UploadVideoStatelessAction {
   private static getStateStore() {

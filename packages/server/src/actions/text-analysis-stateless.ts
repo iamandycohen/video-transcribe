@@ -5,14 +5,9 @@
  */
 
 import { Request, Response } from 'express';
+import { logger, ServiceManager } from '@video-transcribe/core';
 import { ApiResponseHandler } from '../lib/responses/api-responses';
 import { AuthUtils } from '../lib/auth/auth-utils';
-import { logger } from '../utils/logger';
-import { ServiceManager } from '../services/service-manager';
-import { SummarizeContentService } from '../services/summarize-content-service';
-import { ExtractKeyPointsService } from '../services/extract-key-points-service';
-import { AnalyzeSentimentService } from '../services/analyze-sentiment-service';
-import { IdentifyTopicsService } from '../services/identify-topics-service';
 
 // Base class for text analysis actions
 abstract class BaseTextAnalysisAction {
@@ -130,13 +125,8 @@ abstract class BaseTextAnalysisAction {
 }
 
 export class SummarizeContentStatelessAction extends BaseTextAnalysisAction {
-  private static summarizeService: SummarizeContentService | null = null;
-
-  private static getService(): SummarizeContentService {
-    if (!this.summarizeService) {
-      this.summarizeService = new SummarizeContentService();
-    }
-    return this.summarizeService;
+  private static getService() {
+    return ServiceManager.getInstance().getSummarizeContentService();
   }
 
   /**
@@ -156,13 +146,8 @@ export class SummarizeContentStatelessAction extends BaseTextAnalysisAction {
 }
 
 export class ExtractKeyPointsStatelessAction extends BaseTextAnalysisAction {
-  private static keyPointsService: ExtractKeyPointsService | null = null;
-
-  private static getService(): ExtractKeyPointsService {
-    if (!this.keyPointsService) {
-      this.keyPointsService = new ExtractKeyPointsService();
-    }
-    return this.keyPointsService;
+  private static getService() {
+    return ServiceManager.getInstance().getExtractKeyPointsService();
   }
 
   /**
@@ -182,13 +167,8 @@ export class ExtractKeyPointsStatelessAction extends BaseTextAnalysisAction {
 }
 
 export class AnalyzeSentimentStatelessAction extends BaseTextAnalysisAction {
-  private static sentimentService: AnalyzeSentimentService | null = null;
-
-  private static getService(): AnalyzeSentimentService {
-    if (!this.sentimentService) {
-      this.sentimentService = new AnalyzeSentimentService();
-    }
-    return this.sentimentService;
+  private static getService() {
+    return ServiceManager.getInstance().getAnalyzeSentimentService();
   }
 
   /**
@@ -208,13 +188,8 @@ export class AnalyzeSentimentStatelessAction extends BaseTextAnalysisAction {
 }
 
 export class IdentifyTopicsStatelessAction extends BaseTextAnalysisAction {
-  private static topicsService: IdentifyTopicsService | null = null;
-
-  private static getService(): IdentifyTopicsService {
-    if (!this.topicsService) {
-      this.topicsService = new IdentifyTopicsService();
-    }
-    return this.topicsService;
+  private static getService() {
+    return ServiceManager.getInstance().getIdentifyTopicsService();
   }
 
   /**

@@ -3,7 +3,7 @@
  */
 
 import { Response } from 'express';
-import { logger } from '../../utils/logger';
+import { logger } from '@video-transcribe/core';
 
 export interface ApiResponse<T = any> {
   success: boolean;

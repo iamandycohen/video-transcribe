@@ -18,14 +18,14 @@ First, let's verify everything is configured correctly:
 # Build the project
 npm run build
 
-# Test the configuration
-node dist/index.js config
+# Test the configuration (use CLI package)
+node packages/cli/dist/cli.js config
 
 # Test service health
-node dist/index.js status
+node packages/cli/dist/cli.js status
 
-# Test agent integration wrapper
-npm run test-agent
+# Test local setup
+node test-local.js
 ```
 
 **Expected Results**: 
@@ -104,29 +104,33 @@ curl http://localhost:3000/health
 # On Windows without curl:
 Invoke-RestMethod -Uri "http://localhost:3000/health"
 
-# Test tool description
-curl http://localhost:3000/tool-description
+# Test API documentation
+curl http://localhost:3000/docs
 # On Windows:
-Invoke-RestMethod -Uri "http://localhost:3000/tool-description"
+Invoke-RestMethod -Uri "http://localhost:3000/docs"
 
-# Test transcription API
-curl -X POST http://localhost:3000/transcribe \
+# Test atomic workflow (this is the correct API pattern)
+# Step 1: Create workflow
+curl -X POST http://localhost:3000/workflow \
   -H "Content-Type: application/json" \
-  -d '{"videoPath": "./test-video.mp4", "enhance": true}'
+  -H "X-API-Key: your-api-key" \
+  -d '{}'
 
-# On Windows PowerShell:
-$body = @{
-    videoPath = "./test-video.mp4"
-    enhance = $true
-} | ConvertTo-Json
+# Step 2: Upload video (use the workflow_id from step 1)
+curl -X POST http://localhost:3000/upload-video \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
+  -d '{"workflow_id": "YOUR_WORKFLOW_ID", "video_path": "./test-video.mp4"}'
 
-Invoke-RestMethod -Uri "http://localhost:3000/transcribe" -Method POST -Body $body -ContentType "application/json"
+# Or test using the complete atomic workflow script
+node test-complete-atomic-workflow.js
 ```
 
 **Expected Results**:
-- Health check returns healthy status
-- Tool description shows the function schema
-- Transcription API returns structured results with transcription, summary, etc.
+- Health check returns healthy status with service information
+- API docs show all 8 atomic endpoints
+- Atomic workflow test completes full transcription process
+- Use `test-complete-atomic-workflow.js` for easier end-to-end testing
 
 ## 🤖 Step 5: Test Agent Integration Patterns
 

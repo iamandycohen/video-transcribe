@@ -4,8 +4,7 @@
  */
 
 import { watch } from 'chokidar';
-import { TranscriptionAgentWrapper } from '../src/integrations/agent-wrapper';
-import { logger } from '../src/utils/logger';
+import { TranscriptionAgent, logger } from '@video-transcribe/core';
 import { promises as fs } from 'fs';
 import path from 'path';
 
@@ -20,14 +19,14 @@ interface ProcessingRule {
 }
 
 export class AutonomousVideoAgent {
-  private transcriptionWrapper: TranscriptionAgentWrapper;
+  private transcriptionAgent: TranscriptionAgent;
   private watchPaths: string[] = [];
   private processingRules: ProcessingRule[] = [];
   private processingQueue: Array<{ filePath: string; rule: ProcessingRule }> = [];
   private isProcessing = false;
 
   constructor() {
-    this.transcriptionWrapper = new TranscriptionAgentWrapper();
+    this.transcriptionAgent = new TranscriptionAgent();
     this.setupDefaultRules();
   }
 
@@ -86,7 +85,7 @@ export class AutonomousVideoAgent {
     logger.info('Starting Autonomous Video Agent...');
 
     // Check health before starting
-    const health = await this.transcriptionWrapper.healthCheck();
+    const health = await this.transcriptionAgent.healthCheck();
     if (!health.healthy) {
       throw new Error('Transcription services are not healthy');
     }
@@ -207,7 +206,7 @@ export class AutonomousVideoAgent {
     try {
       logger.info(`Processing video: ${filePath} with rule: ${rule.name}`);
 
-      const result = await this.transcriptionWrapper.transcribeVideo({
+      const result = await this.transcriptionAgent.transcribeVideo({
         videoPath: filePath,
         enhance: rule.enhance,
         outputFormat: rule.outputFormat

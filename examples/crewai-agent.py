@@ -41,7 +41,7 @@ class VideoTranscriptionTool:
             # Build command
             cmd = [
                 'node', 
-                os.path.join(self.agent_path, 'dist/index.js'),
+                os.path.join(self.agent_path, 'packages/cli/dist/cli.js'),
                 'transcribe',
                 video_path,
                 '--format', output_format

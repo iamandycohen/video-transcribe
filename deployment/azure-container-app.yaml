@@ -54,8 +54,6 @@ properties:
             value: "${GPT_TRANSCRIBE_MODEL}"
           - name: GPT_AUDIO_MODEL
             value: "${GPT_AUDIO_MODEL}"
-          - name: PORT
-            value: "3000"
           - name: LOG_LEVEL
             value: "info"
         resources:

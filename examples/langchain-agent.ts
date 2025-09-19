@@ -4,7 +4,7 @@
  */
 
 import { Tool } from '@langchain/core/tools';
-import { TranscriptionAgentWrapper } from '../src/integrations/agent-wrapper';
+import { TranscriptionAgent } from '@video-transcribe/core';
 
 export class VideoTranscriptionTool extends Tool {
   name = 'video_transcription';
@@ -12,17 +12,17 @@ export class VideoTranscriptionTool extends Tool {
   Input should be a JSON string with 'videoPath' (required), 'enhance' (optional boolean), and 'outputFormat' (optional: json|txt|both).
   Returns transcribed text, summary, key points, topics, and sentiment analysis.`;
 
-  private transcriptionWrapper: TranscriptionAgentWrapper;
+  private transcriptionAgent: TranscriptionAgent;
 
   constructor() {
     super();
-    this.transcriptionWrapper = new TranscriptionAgentWrapper();
+    this.transcriptionAgent = new TranscriptionAgent();
   }
 
   async _call(input: string): Promise<string> {
     try {
       const args = JSON.parse(input);
-      const result = await this.transcriptionWrapper.transcribeVideo(args);
+      const result = await this.transcriptionAgent.transcribeVideo(args);
 
       if (result.success) {
         return JSON.stringify({

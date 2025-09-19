@@ -1,6 +1,6 @@
 # Video Transcribe Agent
 
-An AI-powered TypeScript agent for transcribing MP4 video files using Azure AI services. This tool extracts audio from video files, transcribes them using Azure Speech-to-Text, and optionally enhances the transcription using GPT models.
+A multi-package TypeScript solution for transcribing MP4 video files using Azure AI services. Available as a **core library**, **CLI tool**, and **API server** for maximum flexibility in AI agent architectures.
 
 ## Features
 
@@ -24,7 +24,23 @@ An AI-powered TypeScript agent for transcribing MP4 video files using Azure AI s
 - Azure subscription with AI services
 - FFmpeg (included via ffmpeg-static package)
 
+## 📦 Package Structure
+
+This monorepo contains three main packages:
+
+- **`@video-transcribe/core`** - Core library for programmatic usage
+- **`@video-transcribe/cli`** - Command-line interface
+- **`@video-transcribe/server`** - REST API server
+
 ## Installation
+
+### 🚀 For Library Usage
+
+```bash
+npm install @video-transcribe/core
+```
+
+### 🛠️ For Development/Contribution
 
 1. Clone the repository:
 ```bash
@@ -32,22 +48,20 @@ git clone <repository-url>
 cd video-transcribe
 ```
 
-2. Install dependencies:
+2. Install workspace dependencies:
 ```bash
 npm install
 ```
 
-3. Create your local environment file:
+3. Build all packages:
+```bash
+npm run build
+```
+
+4. Configure environment:
 ```bash
 # Create .env.local with your Azure configuration
 # See env-config-template.txt for required variables
-```
-
-4. Set your environment variables in `.env.local` with your actual Azure credentials and endpoints.
-
-5. Build the project:
-```bash
-npm run build
 ```
 
 ## Configuration
@@ -66,22 +80,40 @@ Create a `.env.local` file with your Azure configuration. All credentials are lo
 
 The transcription agent can be integrated into larger AI agent systems in multiple ways:
 
-#### 1. Tool Integration (Recommended)
+#### 1. Main Agent Class (Recommended)
 ```typescript
-import { TranscriptionAgentWrapper } from './src/integrations/agent-wrapper';
+import { TranscriptionAgent } from '@video-transcribe/core';
 
-const transcriptionTool = new TranscriptionAgentWrapper();
-const result = await transcriptionTool.transcribeVideo({
+const agent = new TranscriptionAgent();
+
+// README-style API
+const result = await agent.processVideo({
+  inputFile: './meeting.mp4',
+  enhanceWithGPT: true,
+  format: 'both'
+});
+
+// Framework-style API  
+const result = await agent.transcribeVideo({
   videoPath: './meeting.mp4',
   enhance: true,
   outputFormat: 'json'
 });
 ```
 
-#### 2. API Server Mode
+#### 2. Atomic Services (Advanced)
+```typescript
+import { ServiceManager } from '@video-transcribe/core';
+
+const services = ServiceManager.getInstance();
+const workflowId = await services.getAgentStateStore().createWorkflow();
+// Full control over individual steps...
+```
+
+#### 3. API Server Mode
 ```bash
 # Start the API server
-npm run api-server
+node packages/server/dist/server.js
 
 # Call from any agent
 curl -X POST http://localhost:3000/transcribe \
@@ -89,7 +121,7 @@ curl -X POST http://localhost:3000/transcribe \
   -d '{"videoPath": "./video.mp4", "enhance": true}'
 ```
 
-#### 3. Autonomous Agent
+#### 4. Autonomous Agent
 ```typescript
 import { AutonomousVideoAgent } from './examples/autonomous-agent';
 
@@ -98,65 +130,71 @@ agent.addWatchPath('./incoming-videos');
 await agent.start(); // Monitors and processes automatically
 ```
 
-#### 4. Framework-Specific Integration
+#### 5. Framework-Specific Integration
 - **LangChain**: See `examples/langchain-agent.ts`
 - **AutoGen**: See `examples/autogen-agent.py`
 - **CrewAI**: See `examples/crewai-agent.py`
 - **Custom**: See `examples/integration-guide.md`
 
-### Command Line Interface
+### 🖥️ CLI Usage
 
-#### Transcribe a Video
+#### Install CLI Globally
 ```bash
-# Basic transcription
-npm start transcribe video.mp4
-
-# Enhanced transcription with GPT
-npm start transcribe video.mp4 --enhance
-
-# Custom output directory
-npm start transcribe video.mp4 -o ./my-output
-
-# Text format only
-npm start transcribe video.mp4 --format txt
-
-# Keep the extracted audio file
-npm start transcribe video.mp4 --keep-audio
+npm install -g @video-transcribe/cli
 ```
 
-#### Check Service Status
+#### Basic Commands
 ```bash
-npm start status
+# Transcribe a video (enhanced by default)
+video-transcribe transcribe video.mp4
+
+# Basic transcription without enhancement  
+video-transcribe transcribe video.mp4 --enhance false
+
+# Custom output directory and format
+video-transcribe transcribe video.mp4 -o ./my-output --format txt
+
+# Check service health
+video-transcribe status
+
+# View configuration
+video-transcribe config
 ```
 
-#### View Configuration
-```bash
-# Hide API keys (default)
-npm start config
+### 🌐 API Server Usage
 
-# Show API keys
-npm start config --show-keys
+#### Start Server
+```bash
+# Install server package
+npm install -g @video-transcribe/server
+
+# Start server
+video-transcribe-server
 ```
 
-### Programmatic Usage
+#### API Endpoints
+- `POST /create-workflow` - Create a new workflow
+- `POST /upload-video` - Upload video for processing
+- `POST /extract-audio` - Extract audio from video
+- `POST /transcribe-audio` - Transcribe audio to text
+- `POST /enhance-transcription` - Enhance with GPT
+- `GET /get-workflow-state/:id` - Get workflow status
+- `GET /health` - Health check
 
-```typescript
-import { TranscriptionAgent } from './src/agent/transcription-agent';
 
-const agent = new TranscriptionAgent();
+## 🛠️ Development & Build Commands
 
-const result = await agent.processVideo({
-  inputFile: './video.mp4',
-  outputDir: './output',
-  enhanceWithGPT: true,
-  format: 'both'
-});
+```bash
+# Build all packages
+npm run build
 
-console.log('Transcription:', result.transcription.fullText);
-if (result.enhancement) {
-  console.log('Summary:', result.enhancement.summary);
-  console.log('Key Points:', result.enhancement.keyPoints);
-}
+# Build individual packages  
+npm run build:core
+npm run build:cli
+npm run build:server
+
+# Clean all builds
+npm run clean
 ```
 
 ## Output Formats

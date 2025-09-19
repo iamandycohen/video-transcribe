@@ -4,7 +4,7 @@
 `C:\code\video-transcribe`
 
 ## ✨ Latest Update
-**Step-Based Workflow Architecture**: Enhanced state management with individual step tracking, retry capability, and automatic legacy migration.
+**Multi-Package Monorepo**: Refactored to packages/core (library), packages/cli (command-line), packages/server (API). Enhanced ServiceManager architecture with consistent singleton pattern.
 
 ## ⚡ Quick Commands
 
@@ -13,11 +13,11 @@
 npm run build
 node test-local.js
 
-# Test with your video
-node dist/index.js transcribe ./your-video.mp4 --enhance
+# Test with your video (CLI)
+node packages/cli/dist/cli.js transcribe ./your-video.mp4 --enhance
 
 # Start API server
-npm run api-server
+node packages/server/dist/server.js
 
 # Deploy to Azure (after testing)
 ./deployment/deploy-to-azure.sh

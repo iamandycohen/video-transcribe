@@ -1,18 +1,72 @@
 # 🗺️ Video Transcription Service - Integration Roadmap
 
-## 🎯 Current State (v1.0)
+## ⚠️ **STATUS: UNDER REVIEW**
 
-### ✅ **Production Ready**
-- **Azure Container App** deployment with video transcription + AI enhancement
-- **REST API** with comprehensive endpoints (`/transcribe`, `/transcribe/upload`, `/transcribe/async`)
-- **Dual Authentication:**
-  - `X-API-Key` header for direct REST API access
-  - Azure Managed Identity for Azure AI Foundry integration
+This roadmap is currently being reassessed based on:
+- Recent multi-package architecture refactor completion
+- Current usage patterns and user feedback
+- Technical feasibility and resource allocation
 
-### ✅ **Supported Integrations**
-- **Azure AI Foundry Agents** (primary use case)
-- **Direct REST API calls** with API key authentication
-- **File upload** and **async processing** capabilities
+**Next Review Date**: Q1 2025
+
+## 🏗️ **Phase 1.5: Service Architecture Evolution**
+
+### **Enterprise Dependency Injection (v2.0)**
+```yaml
+Priority: Medium
+Timeline: Q2 2025
+Goal: Migrate to enterprise-grade DI patterns used by big tech
+Requirements:
+  - Interface-based service dependencies
+  - Scoped service lifetimes (singleton/scoped/transient)
+  - Constructor injection with type safety
+  - Service registration and resolution
+  - Mock-friendly architecture for testing
+Implementation:
+  - Research: InversifyJS vs TSyringe vs custom container
+  - Design: Service interfaces and lifetime patterns
+  - Migration: Gradual rollout without breaking existing API
+  - Benefits: Better testability, memory control, enterprise patterns
+Technologies:
+  - InversifyJS or TSyringe for DI container
+  - Reflect-metadata for decorator support
+  - Interface segregation principle
+```
+
+### **Performance Monitoring & Memory Management**
+```yaml
+Priority: Medium
+Timeline: Q2 2025
+Goal: Enterprise-grade observability and resource management
+Features:
+  - Service lifecycle monitoring
+  - Memory usage tracking per service
+  - Lazy loading performance metrics
+  - Service dependency graph visualization
+  - Auto-disposal of unused services
+```
+
+### **Action Architecture Modernization**
+```yaml
+Priority: Medium
+Timeline: Q2 2025 (with Enterprise DI)
+Goal: Move from static methods to instance-based dependency injection
+Current Issue: Action classes use static methods which hurt testability
+Requirements:
+  - Replace static action methods with instance-based handlers
+  - Implement constructor dependency injection
+  - Enable proper mocking and testing
+  - Align with modern framework patterns (NestJS, Spring)
+Implementation:
+  - Phase 1: Support both static and instance patterns
+  - Phase 2: Migrate routes to use instance-based actions
+  - Phase 3: Remove static methods entirely
+Benefits:
+  - Better testability with dependency injection
+  - Cleaner architecture with explicit dependencies
+  - Framework alignment for future integrations
+  - Easier mocking for unit tests
+```
 
 ## 🚀 **Phase 2: Enhanced AI Platform Support**
 
@@ -174,16 +228,15 @@ Features:
                     └──────────────────┘
 ```
 
-## 📋 **Integration Priority Matrix**
+## 📋 **Integration Priority Matrix** *(Under Review)*
 
-| Integration | Business Value | Technical Complexity | Timeline |
-|-------------|----------------|---------------------|----------|
-| Azure AI Foundry | 🟢 Very High | 🟢 Low | ✅ Done |
-| ChatGPT Custom Actions | 🟢 High | 🟡 Medium | Q1 2025 |
-| MCP Protocol | 🟡 Medium | 🟡 Medium | Q1 2025 |
-| Teams Bot | 🟡 Medium | 🔴 High | Q2 2025 |
-| Slack App | 🟡 Medium | 🟡 Medium | Q2 2025 |
-| A2A Protocol | 🔴 Low | 🔴 High | Q2 2025 |
+| Integration | Business Value | Technical Complexity | Status |
+|-------------|----------------|---------------------|---------|
+| ChatGPT Custom Actions | 🟢 High | 🟡 Medium | Under Review |
+| MCP Protocol | 🟡 Medium | 🟡 Medium | Under Review |
+| Teams Bot | 🟡 Medium | 🔴 High | Under Review |
+| Slack App | 🟡 Medium | 🟡 Medium | Under Review |
+| A2A Protocol | 🔴 Low | 🔴 High | Under Review |
 
 ## 🔧 **Implementation Guidelines**
 

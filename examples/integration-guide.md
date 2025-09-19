@@ -24,9 +24,9 @@ npm run build
 npm run api-server
 
 # Agents call via HTTP
-curl -X POST http://localhost:3000/transcribe \
+curl -X POST http://localhost:3000/upload-video \
   -H "Content-Type: application/json" \
-  -d '{"videoPath": "./video.mp4", "enhance": true}'
+  -d '{"source_url": "http://example.com/video.mp4"}'
 ```
 
 ### 3. **Subprocess Integration**

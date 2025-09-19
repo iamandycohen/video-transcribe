@@ -4,25 +4,17 @@
  */
 
 import { Request, Response } from 'express';
+import { logger, ServiceManager, azureConfig } from '@video-transcribe/core';
 import { ApiResponseHandler } from '../lib/responses/api-responses';
 import { AuthUtils } from '../lib/auth/auth-utils';
-import { logger } from '../utils/logger';
-import { ServiceManager } from '../services/service-manager';
-import { EnhanceTranscriptionService } from '../services/enhance-transcription-service';
-import { azureConfig } from '../config/azure-config';
 
 export class EnhanceTranscriptionStatelessAction {
   private static getStateStore() {
     return ServiceManager.getInstance().getAgentStateStore();
   }
 
-  private static enhanceService: EnhanceTranscriptionService | null = null;
-
-  private static getService(): EnhanceTranscriptionService {
-    if (!this.enhanceService) {
-      this.enhanceService = new EnhanceTranscriptionService();
-    }
-    return this.enhanceService;
+  private static getEnhanceService() {
+    return ServiceManager.getInstance().getGPTEnhancementService();
   }
 
   /**
@@ -66,23 +58,22 @@ export class EnhanceTranscriptionStatelessAction {
       await this.getStateStore().startStep(workflow_id, 'enhance_transcription');
 
       // Enhance transcription with GPT
-      const enhancementResult = await this.getService().enhanceTranscription({
-        text: textToEnhance
+      const enhancementResult = await this.getEnhanceService().enhanceTranscription({
+        fullText: textToEnhance,
+        segments: [],
+        duration: 0,
+        language: 'en-US',
+        confidence: 1.0
       });
-
-      if (!enhancementResult.success) {
-        res.status(400).json({
-          success: false,
-          error: enhancementResult.error,
-          workflow_id
-        });
-        return;
-      }
 
       // Complete enhance transcription step with results
       await this.getStateStore().completeStep(workflow_id, 'enhance_transcription', {
         enhanced_text: enhancementResult.enhancedText,
-        enhancement_time: enhancementResult.enhancementTime || 0,
+        summary: enhancementResult.summary,
+        key_points: enhancementResult.keyPoints,
+        topics: enhancementResult.topics,
+        sentiment: enhancementResult.sentiment,
+        enhancement_time: 0,
         model_used: azureConfig.models.gptTranscribe
       });
 
@@ -91,8 +82,11 @@ export class EnhanceTranscriptionStatelessAction {
       res.json({
         success: true,
         enhanced_text: enhancementResult.enhancedText,
+        summary: enhancementResult.summary,
+        key_points: enhancementResult.keyPoints,
+        topics: enhancementResult.topics,
+        sentiment: enhancementResult.sentiment,
         original_text: textToEnhance,
-        enhancementTime: enhancementResult.enhancementTime,
         workflow_id,
         message: 'Transcription enhanced successfully. Use enhanced_text and workflow_id for further analysis.'
       });

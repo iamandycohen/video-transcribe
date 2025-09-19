@@ -4,11 +4,9 @@
  */
 
 import { Request, Response } from 'express';
+import { logger, ServiceManager } from '@video-transcribe/core';
 import { ApiResponseHandler } from '../lib/responses/api-responses';
 import { AuthUtils } from '../lib/auth/auth-utils';
-import { logger } from '../utils/logger';
-import { ServiceManager } from '../services/service-manager';
-import { TranscribeAudioService } from '../services/transcribe-audio-service';
 
 export class TranscribeAudioStatelessAction {
   private static getStateStore() {
@@ -19,7 +17,9 @@ export class TranscribeAudioStatelessAction {
     return ServiceManager.getInstance().getReferenceService();
   }
 
-  private static transcribeService = new TranscribeAudioService();
+  private static getTranscribeService() {
+    return ServiceManager.getInstance().getTranscribeAudioService();
+  }
 
   /**
    * Handle transcribe audio request - stateless with workflow state
@@ -86,7 +86,7 @@ export class TranscribeAudioStatelessAction {
       }
 
       // Transcribe audio to text
-      const transcriptionResult = await this.transcribeService.transcribeAudio({
+      const transcriptionResult = await this.getTranscribeService().transcribeAudio({
         audioId: `audio_${workflow_id}`, // Dummy audioId for compatibility
         audioFilePath: audioFilePath
       });

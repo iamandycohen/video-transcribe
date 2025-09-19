@@ -4,11 +4,9 @@
  */
 
 import { Request, Response } from 'express';
+import { logger, ServiceManager } from '@video-transcribe/core';
 import { ApiResponseHandler } from '../lib/responses/api-responses';
 import { AuthUtils } from '../lib/auth/auth-utils';
-import { logger } from '../utils/logger';
-import { ServiceManager } from '../services/service-manager';
-import { AudioExtractorService } from '../services/audio-extractor';
 
 export class ExtractAudioStatelessAction {
   private static getStateStore() {
@@ -19,7 +17,9 @@ export class ExtractAudioStatelessAction {
     return ServiceManager.getInstance().getReferenceService();
   }
 
-  private static audioExtractor = new AudioExtractorService();
+  private static getAudioExtractor() {
+    return ServiceManager.getInstance().getAudioExtractorService();
+  }
 
   /**
    * Handle extract audio request - stateless with workflow state
@@ -74,7 +74,7 @@ export class ExtractAudioStatelessAction {
 
       // Extract audio using temp file
       const tempVideoPath = this.getReferenceService().getFilePathFromUrl(video_url);
-      const audioResult = await this.audioExtractor.extractAudioFromMp4(tempVideoPath);
+      const audioResult = await this.getAudioExtractor().extractAudioFromMp4(tempVideoPath);
 
       // Read extracted audio file
       const audioBuffer = await require('fs').promises.readFile(audioResult.audioFilePath);
@@ -87,7 +87,7 @@ export class ExtractAudioStatelessAction {
       const cleanupResult = await this.getReferenceService().cleanup(video_url);
 
       // Clean up temporary audio file from extractor
-      await this.audioExtractor.cleanup(audioResult.audioFilePath);
+      await this.getAudioExtractor().cleanup(audioResult.audioFilePath);
 
       // Get audio file info for result
       const audioFileInfo = await this.getReferenceService().getFileInfo(audio_url);

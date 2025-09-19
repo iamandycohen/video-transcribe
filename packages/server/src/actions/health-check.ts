@@ -3,11 +3,12 @@
  */
 
 import { Request, Response } from 'express';
-import { HealthCheckService } from '../services/health-check-service';
-import { logger } from '../utils/logger';
+import { ServiceManager, logger } from '@video-transcribe/core';
 
 export class HealthCheckAction {
-  private static healthService = new HealthCheckService();
+  private static getHealthService() {
+    return ServiceManager.getInstance().getHealthCheckService();
+  }
 
   /**
    * Handle health check request - thin wrapper around HealthCheckService
@@ -21,11 +22,11 @@ export class HealthCheckAction {
       
       if (detailed) {
         // Full health check with all service tests
-        result = await HealthCheckAction.healthService.checkHealth();
+        result = await HealthCheckAction.getHealthService().checkHealth();
         isHealthy = result.status === 'healthy';
       } else {
         // Quick health check for monitoring
-        result = await HealthCheckAction.healthService.getSimpleStatus();
+        result = await HealthCheckAction.getHealthService().getSimpleStatus();
         isHealthy = result.healthy;
       }
 
@@ -53,21 +54,21 @@ export class HealthCheckAction {
   /**
    * Get detailed health status (for debugging)
    */
-  static async getDetailedStatus(): Promise<any> {
-    return await HealthCheckAction.healthService.checkHealth();
+  static async getDetailedStatus(): Promise<{ status: string; services: Record<string, boolean>; capabilities: string[]; timestamp: string; uptime: number }> {
+    return await HealthCheckAction.getHealthService().checkHealth();
   }
 
   /**
    * Get simple status (for monitoring)
    */
-  static async getSimpleStatus(): Promise<any> {
-    return await HealthCheckAction.healthService.getSimpleStatus();
+  static async getSimpleStatus(): Promise<{ healthy: boolean; timestamp: string; uptime: number }> {
+    return await HealthCheckAction.getHealthService().getSimpleStatus();
   }
 
   /**
    * Reset uptime counter
    */
   static resetUptime(): void {
-    HealthCheckAction.healthService.resetUptime();
+    HealthCheckAction.getHealthService().resetUptime();
   }
 }

@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * API Server - STATELESS VERSION
  * Uses agent-managed state with pass-by-reference file handling
@@ -5,8 +6,7 @@
 
 import express from 'express';
 import cors from 'cors';
-import { getVersionInfo } from './version';
-import { logger } from './utils/logger';
+import { getVersionInfo, logger } from '@video-transcribe/core';
 import { requireAuth } from './middleware/multi-auth';
 
 // Import stateless actions
@@ -128,7 +128,7 @@ app.use((req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 3001; // Use different port to avoid conflicts
+const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   logger.info(`🚀 Video Transcription Agent (Stateless) API server running on port ${PORT}`);

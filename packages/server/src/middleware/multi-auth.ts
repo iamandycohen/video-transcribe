@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { logger } from '../utils/logger';
+import { logger } from '@video-transcribe/core';
 
 export interface AuthContext {
   method: 'api-key' | 'managed-identity' | 'anonymous';

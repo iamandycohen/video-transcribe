@@ -176,6 +176,24 @@ export class ReferenceService {
   }
 
   /**
+   * Store local file as reference (copy to temp directory)
+   */
+  async storeFromPath(filePath: string, workflow_id: string): Promise<string> {
+    try {
+      logger.info(`Storing local file: ${filePath}`);
+      
+      // Read the local file
+      const buffer = await fs.readFile(filePath);
+      const originalName = path.basename(filePath);
+      
+      return await this.storeVideo(buffer, originalName, workflow_id);
+    } catch (error) {
+      logger.error(`Failed to store from path ${filePath}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Download file from remote URL and store as reference
    */
   async storeFromUrl(sourceUrl: string, workflow_id: string): Promise<string> {

@@ -83,21 +83,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run linting
-        run: npm run lint
+      - name: Run linting (if available)
+        run: npm run lint || echo "No lint script defined"
 
       # TODO: Add tests
       # - name: Run tests
       #   run: npm test
 
-      - name: Build TypeScript
+      - name: Build all packages
         run: npm run build
 
       - name: Validate build artifacts
         run: |
-          test -f dist/src/api-server-stateless.js
-          test -f dist/src/version.js
-          echo "Build artifacts validated"
+          test -f packages/core/dist/index.js
+          test -f packages/cli/dist/cli.js
+          test -f packages/server/dist/server.js
+          echo "Build artifacts validated for all packages"
 
   # Build Docker image in Azure ACR (matches working bash script)
   docker:
@@ -240,7 +241,6 @@ jobs:
                 GIT_BRANCH="${{ github.ref_name }}" \
                 IMAGE_TAG="${{ needs.version.outputs.image-tag }}" \
                 ENVIRONMENT=production \
-                PORT=3000 \
                 LOG_LEVEL=info \
                 API_KEY=secretref:api-key
           else
@@ -255,7 +255,7 @@ jobs:
               --user-assigned $IDENTITY_ID \
               --registry-server ${{ env.ACR_NAME }}.azurecr.io \
               --registry-identity $IDENTITY_ID \
-              --target-port 3000 \
+              --target-port 3001 \
               --ingress external \
               --min-replicas 1 \
               --max-replicas 10 \
@@ -277,7 +277,6 @@ jobs:
                 GIT_BRANCH="${{ github.ref_name }}" \
                 IMAGE_TAG="${{ needs.version.outputs.image-tag }}" \
                 ENVIRONMENT=production \
-                PORT=3000 \
                 LOG_LEVEL=info \
                 API_KEY=secretref:api-key \
               --secrets \

@@ -245,7 +245,6 @@ if az containerapp show --name $CONTAINER_APP_NAME --resource-group $RESOURCE_GR
       AZURE_SPEECH_TO_TEXT_ENDPOINT="$AZURE_SPEECH_TO_TEXT_ENDPOINT" \
       GPT_TRANSCRIBE_MODEL="$GPT_TRANSCRIBE_MODEL" \
       GPT_AUDIO_MODEL="$GPT_AUDIO_MODEL" \
-      PORT=3000 \
       LOG_LEVEL=info \
       API_KEY=secretref:api-key
   
@@ -261,7 +260,7 @@ else
     --user-assigned $IDENTITY_ID \
     --registry-server $ACR_NAME.azurecr.io \
     --registry-identity $IDENTITY_ID \
-    --target-port 3000 \
+              --target-port 3000 \
     --ingress external \
     --min-replicas 1 \
     --max-replicas 10 \
@@ -277,7 +276,6 @@ else
       AZURE_SPEECH_TO_TEXT_ENDPOINT="$AZURE_SPEECH_TO_TEXT_ENDPOINT" \
       GPT_TRANSCRIBE_MODEL="$GPT_TRANSCRIBE_MODEL" \
       GPT_AUDIO_MODEL="$GPT_AUDIO_MODEL" \
-      PORT=3000 \
       LOG_LEVEL=info \
       API_KEY=secretref:api-key \
     --secrets \
