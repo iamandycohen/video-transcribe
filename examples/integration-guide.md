@@ -33,11 +33,24 @@ curl -X POST http://localhost:3000/upload-video \
 Call the CLI from other languages/frameworks:
 
 ```python
-# Python agents
+# Python agents - basic transcription with Whisper
 import subprocess
 result = subprocess.run([
     'node', 'dist/index.js', 'transcribe', 
     'video.mp4', '--enhance', '--format', 'json'
+])
+
+# Python agents - with Whisper quality options
+result = subprocess.run([
+    'node', 'dist/index.js', 'transcribe', 
+    'video.mp4', '--whisper-quality', 'accurate',
+    '--language', 'en', '--enhance', '--format', 'json'
+])
+
+# Python agents - force Azure Speech Services
+result = subprocess.run([
+    'node', 'dist/index.js', 'transcribe', 
+    'video.mp4', '--use-azure', '--enhance', '--format', 'json'
 ])
 ```
 
@@ -118,13 +131,83 @@ const assistant = await openai.beta.assistants.create({
 File Upload ──▶ Queue ──▶ Transcription Agent ──▶ Results Queue ──▶ Consumer Agents
 ```
 
+## 🎧 Whisper Integration Options
+
+### API Integration with Whisper
+```javascript
+// Basic Whisper transcription (default)
+const response = await fetch('/transcribe-audio', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    workflow_id: workflowId
+  })
+});
+
+// Whisper with quality and language options
+const response = await fetch('/transcribe-audio', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    workflow_id: workflowId,
+    quality: 'accurate',      // fast|balanced|accurate|best
+    language: 'en',           // optional language override
+    use_azure: false          // false = Whisper (default)
+  })
+});
+
+// Force Azure Speech Services
+const response = await fetch('/transcribe-audio', {
+  method: 'POST', 
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    workflow_id: workflowId,
+    use_azure: true           // bypass Whisper, use Azure directly
+  })
+});
+```
+
+### Agent Library Integration with Whisper
+```typescript
+import { TranscriptionAgent } from '@video-transcribe/core';
+
+const agent = new TranscriptionAgent();
+
+// Use different quality levels based on use case
+const quickDraft = await agent.transcribeVideo({
+  videoPath: './draft-video.mp4',
+  whisperOptions: { quality: 'fast' },    // Quick processing
+  enhance: false
+});
+
+const finalTranscript = await agent.transcribeVideo({
+  videoPath: './important-meeting.mp4', 
+  whisperOptions: { quality: 'best' },    // Highest quality
+  enhance: true
+});
+
+// Multi-language support
+const spanishTranscript = await agent.transcribeVideo({
+  videoPath: './spanish-presentation.mp4',
+  whisperOptions: { 
+    quality: 'accurate',
+    language: 'es'                         // Spanish
+  },
+  enhance: true
+});
+```
+
 ## 📝 Usage Examples by Use Case
 
 ### Meeting Analysis Agent
 ```typescript
 const result = await transcriptionWrapper.transcribeVideo({
   videoPath: './team-meeting.mp4',
-  enhance: true
+  enhance: true,
+  whisperOptions: { 
+    quality: 'balanced',                   // Good speed/quality for meetings
+    language: 'en'                         // Improve accuracy for English
+  }
 });
 
 // Extract action items

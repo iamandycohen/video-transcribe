@@ -5,7 +5,7 @@ A multi-package TypeScript solution for transcribing MP4 video files using Azure
 ## Features
 
 - 🎥 **MP4 Audio Extraction**: Automatically extracts audio from MP4 video files
-- 🎤 **High-Quality Transcription**: Uses Azure Speech-to-Text for accurate transcription
+- 🎤 **High-Quality Transcription**: Uses local Whisper (default) with Azure Speech-to-Text fallback
 - 🤖 **AI Enhancement**: Optional GPT-powered transcription improvement and analysis
 - 📝 **Multiple Output Formats**: Supports JSON and text output formats
 - 🔍 **Rich Analysis**: Generates summaries, key points, topics, and sentiment analysis
@@ -18,11 +18,20 @@ A multi-package TypeScript solution for transcribing MP4 video files using Azure
 - 🔄 **Individual Step Retry**: Retry failed steps without restarting entire workflows
 - 🎯 **Modular Architecture**: Organized workflow steps (processing vs analysis) for easy maintenance and extension
 
+### 🎧 Whisper Integration
+
+- 🆓 **Local Processing**: Free, offline transcription using OpenAI Whisper
+- 🏃 **Quality Levels**: `fast` (tiny), `balanced` (base), `accurate` (small), `best` (medium) models
+- 🌍 **Multi-Language**: Auto-detection or manual language override support
+- 📦 **Auto-Download**: Models download automatically on first use
+- 🔄 **Smart Fallback**: Automatic fallback to Azure Speech Services if Whisper fails
+- 💰 **Cost-Effective**: Reduce Azure Speech Services usage while maintaining quality
+
 ## Prerequisites
 
 - Node.js 18.0.0 or higher
-- Azure subscription with AI services
 - FFmpeg (included via ffmpeg-static package)
+- Azure subscription with AI services (optional - only needed for AI enhancement and cloud transcription)
 
 ## 📦 Package Structure
 
@@ -66,13 +75,30 @@ npm run build
 
 ## Configuration
 
-The application uses the following Azure services:
+The application can work in two modes:
 
-- **Azure Speech Services**: For audio transcription
-- **Azure OpenAI**: For transcription enhancement
-- **Azure AI Foundry**: For project management
+### Local Mode (Whisper Only)
+- **Local Whisper**: Free offline transcription (default)
+- **No Azure required**: Works completely offline for basic transcription
+- Only needs `API_KEY` for CLI/API access
 
-Create a `.env.local` file with your Azure configuration. All credentials are loaded from environment variables for security. The application includes configuration validation that will fail fast if required variables are missing.
+### Enhanced Mode (with Azure Services)
+- **Azure Speech Services**: For cloud transcription fallback
+- **Azure OpenAI**: For transcription enhancement and analysis
+- **Azure AI Foundry**: For project management and agent integration
+
+Create a `.env.local` file with your configuration:
+```bash
+# Required for any mode
+API_KEY=your-secure-api-key
+
+# Required only for Azure features
+AZURE_SUBSCRIPTION_ID=your-subscription-id
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
+# ... other Azure variables
+```
+
+See `.env.example` for the complete configuration template. The application includes configuration validation that will fail fast if required variables are missing.
 
 ## Usage
 
@@ -86,18 +112,30 @@ import { TranscriptionAgent } from '@video-transcribe/core';
 
 const agent = new TranscriptionAgent();
 
-// README-style API
+// Basic transcription with Whisper (default)
 const result = await agent.processVideo({
   inputFile: './meeting.mp4',
   enhanceWithGPT: true,
   format: 'both'
 });
 
-// Framework-style API  
+// Custom Whisper options
 const result = await agent.transcribeVideo({
   videoPath: './meeting.mp4',
   enhance: true,
-  outputFormat: 'json'
+  outputFormat: 'json',
+  whisperOptions: {
+    quality: 'accurate',  // tiny, base, small, medium
+    language: 'en',       // optional language override
+    useAzure: false       // false = Whisper (default), true = Azure
+  }
+});
+
+// Force Azure Speech Services
+const result = await agent.transcribeVideo({
+  videoPath: './meeting.mp4',
+  useAzure: true,
+  enhance: true
 });
 ```
 
@@ -136,6 +174,44 @@ await agent.start(); // Monitors and processes automatically
 - **CrewAI**: See `examples/crewai-agent.py`
 - **Custom**: See `examples/integration-guide.md`
 
+### 🎧 Whisper Usage Guide
+
+#### Quality Levels
+```bash
+# Model sizes and performance characteristics:
+--whisper-quality fast     # tiny model   (~39MB)  - fastest, basic quality
+--whisper-quality balanced # base model   (~74MB)  - good speed/quality balance  
+--whisper-quality accurate # small model  (~244MB) - higher accuracy
+--whisper-quality best     # medium model (~769MB) - highest quality
+```
+
+#### Language Support
+```bash
+# Auto-detection (default)
+video-transcribe transcribe video.mp4
+
+# Specific language (improves accuracy)
+video-transcribe transcribe video.mp4 --language en    # English
+video-transcribe transcribe video.mp4 --language es    # Spanish  
+video-transcribe transcribe video.mp4 --language fr    # French
+video-transcribe transcribe video.mp4 --language de    # German
+video-transcribe transcribe video.mp4 --language zh    # Chinese
+# ... supports 100+ languages
+```
+
+#### Model Management
+- **Automatic Downloads**: Models download on first use
+- **Caching**: Models cached in system directory
+- **Offline**: Works completely offline after first download
+- **Fallback**: Auto-fallback to Azure if Whisper fails
+
+#### Performance Tips
+- Use `fast` for quick drafts or real-time processing
+- Use `balanced` for most production use cases (default)
+- Use `accurate` for important content requiring precision
+- Use `best` for critical transcriptions where quality is paramount
+- Set `WHISPER_SUPPRESS_WARNINGS=true` to reduce console noise
+
 ### 🖥️ CLI Usage
 
 #### Install CLI Globally
@@ -145,7 +221,7 @@ npm install -g @video-transcribe/cli
 
 #### Basic Commands
 ```bash
-# Transcribe a video (enhanced by default)
+# Transcribe a video (uses Whisper by default, enhanced)
 video-transcribe transcribe video.mp4
 
 # Basic transcription without enhancement  
@@ -153,6 +229,23 @@ video-transcribe transcribe video.mp4 --enhance false
 
 # Custom output directory and format
 video-transcribe transcribe video.mp4 -o ./my-output --format txt
+
+# Whisper quality levels
+video-transcribe transcribe video.mp4 --whisper-quality fast     # tiny model, fastest
+video-transcribe transcribe video.mp4 --whisper-quality balanced # base model, default  
+video-transcribe transcribe video.mp4 --whisper-quality accurate # small model, more accurate
+video-transcribe transcribe video.mp4 --whisper-quality best     # medium model, highest quality
+
+# Language override (auto-detected if not specified)
+video-transcribe transcribe video.mp4 --language en
+video-transcribe transcribe video.mp4 --language es
+
+# Force Azure Speech Services instead of Whisper
+video-transcribe transcribe video.mp4 --use-azure
+
+# Resume a workflow from a specific step
+video-transcribe resume <workflow-id>
+video-transcribe resume <workflow-id> --from-step transcribe
 
 # Check service health
 video-transcribe status
@@ -173,13 +266,27 @@ video-transcribe-server
 ```
 
 #### API Endpoints
-- `POST /create-workflow` - Create a new workflow
+- `POST /workflow` - Create a new workflow
 - `POST /upload-video` - Upload video for processing
 - `POST /extract-audio` - Extract audio from video
-- `POST /transcribe-audio` - Transcribe audio to text
+- `POST /transcribe-audio` - Transcribe audio to text (Whisper default, supports quality/language options)
 - `POST /enhance-transcription` - Enhance with GPT
-- `GET /get-workflow-state/:id` - Get workflow status
+- `POST /summarize-content` - Generate content summary
+- `POST /extract-key-points` - Extract key points
+- `POST /analyze-sentiment` - Analyze sentiment
+- `POST /identify-topics` - Identify topics
+- `GET /workflow/:id` - Get workflow status
 - `GET /health` - Health check
+
+#### Transcribe Audio Options
+```json
+{
+  "workflow_id": "uuid",
+  "quality": "fast|balanced|accurate|best",
+  "language": "en|es|fr|...",
+  "use_azure": false
+}
+```
 
 
 ## 🛠️ Development & Build Commands
