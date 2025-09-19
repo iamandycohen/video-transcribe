@@ -9,9 +9,40 @@ This roadmap is currently being reassessed based on:
 
 **Next Review Date**: Q1 2025
 
-## 🏗️ **Phase 1.5: Service Architecture Evolution**
+## 🏗️ **Phase 1.5: Job-Based Architecture Implementation**
 
-### **Enterprise Dependency Injection (v2.0)**
+### **Background Job Processing (v2.1)**
+```yaml
+Priority: High
+Timeline: Q1 2025
+Goal: Implement job-based architecture for long-running operations
+Current Issue: Long-running operations block agents and provide no progress/cancellation
+Requirements:
+  - JobStateStore for execution tracking and control
+  - Enhanced APIs returning job_id for async operations
+  - Job status polling endpoint (GET /jobs/{job_id})
+  - Job cancellation endpoint (POST /jobs/{job_id}/cancel)
+  - Progress tracking and ETA calculation
+  - Agent-friendly workflow orchestration
+Implementation:
+  - Phase 1: JobStateStore and background job infrastructure
+  - Phase 2: Enhance upload-video, extract-audio, transcribe-audio, enhance-transcription APIs
+  - Phase 3: Update OpenAPI specs and agent instructions
+  - Phase 4: End-to-end testing and performance validation
+Benefits:
+  - Responsive agent interfaces with progress tracking
+  - Cancellation support for expensive operations
+  - Better resource management and cost control
+  - Scalable background job processing
+  - Improved user experience for long-running workflows
+Technologies:
+  - Dual-state architecture (WorkflowStateStore + JobStateStore)
+  - AbortController for cancellation
+  - Background job queue system
+  - Enhanced OpenAPI specifications
+```
+
+### **Enterprise Dependency Injection (v2.2)**
 ```yaml
 Priority: Medium
 Timeline: Q2 2025
@@ -228,15 +259,17 @@ Features:
                     └──────────────────┘
 ```
 
-## 📋 **Integration Priority Matrix** *(Under Review)*
+## 📋 **Development Priority Matrix** *(Updated)*
 
-| Integration | Business Value | Technical Complexity | Status |
-|-------------|----------------|---------------------|---------|
-| ChatGPT Custom Actions | 🟢 High | 🟡 Medium | Under Review |
-| MCP Protocol | 🟡 Medium | 🟡 Medium | Under Review |
-| Teams Bot | 🟡 Medium | 🔴 High | Under Review |
-| Slack App | 🟡 Medium | 🟡 Medium | Under Review |
-| A2A Protocol | 🔴 Low | 🔴 High | Under Review |
+| Feature | Business Value | Technical Complexity | Timeline | Status |
+|---------|----------------|---------------------|----------|--------|
+| **Job-Based Architecture** | 🟢 High | 🟡 Medium | Q1 2025 | Planned |
+| ChatGPT Custom Actions | 🟢 High | 🟡 Medium | Q1 2025 | Under Review |
+| MCP Protocol | 🟡 Medium | 🟡 Medium | Q1 2025 | Under Review |
+| Enterprise DI | 🟡 Medium | 🟡 Medium | Q2 2025 | Planned |
+| Teams Bot | 🟡 Medium | 🔴 High | Q2 2025 | Under Review |
+| Slack App | 🟡 Medium | 🟡 Medium | Q2 2025 | Under Review |
+| A2A Protocol | 🔴 Low | 🔴 High | Q2 2025 | Under Review |
 
 ## 🔧 **Implementation Guidelines**
 
