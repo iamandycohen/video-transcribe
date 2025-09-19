@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Transcribe Audio Action",
-    "description": "Transcribes audio to text using Azure Speech-to-Text service.\n\nThis action processes audio files to generate accurate text transcriptions with timing information and confidence scores. It automatically cleans up audio files after successful transcription.\n\nPerfect for Azure AI Foundry workflows that need high-quality speech-to-text conversion.",
+    "description": "Transcribes audio to text using local Whisper (default) with Azure Speech-to-Text fallback.\n\nThis action processes audio files using OpenAI Whisper for accurate, local transcription with automatic fallback to Azure Speech Services. Supports quality settings, language detection/override, and service selection. Automatically cleans up audio files after successful transcription.\n\nPerfect for Azure AI Foundry workflows that need high-quality, cost-effective speech-to-text conversion with local processing capabilities.",
     "version": "2.0.0-stateless",
     "contact": {
       "name": "Andy Cohen",
@@ -23,24 +23,42 @@
     "/transcribe-audio": {
       "post": {
         "summary": "Transcribe Audio to Text",
-        "description": "Transcribes audio to text using Azure Speech-to-Text service.\n\nAutomatically cleans up audio file after successful transcription. Stores raw_text in workflow state for enhancement and analysis.\n\nWorkflow:\n1. Extract audio using extract_audio action\n2. Call this action with workflow_id\n3. Use same workflow_id with text processing actions",
+        "description": "Transcribes audio to text using local Whisper (default) with Azure Speech-to-Text fallback.\n\nUses OpenAI Whisper for local, cost-effective transcription with automatic model downloads. Falls back to Azure Speech Services if Whisper fails. Supports quality settings (fast/balanced/accurate/best), language detection/override, and service selection.\n\nAutomatically cleans up audio file after successful transcription. Stores raw_text in workflow state for enhancement and analysis.\n\nWorkflow:\n1. Extract audio using extract_audio action\n2. Call this action with workflow_id and optional parameters\n3. Use same workflow_id with text processing actions",
         "operationId": "transcribe_audio",
         "tags": ["File Processing"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["workflow_id"],
-                "properties": {
-                  "workflow_id": {
-                    "type": "string",
-                    "description": "Workflow identifier - must have extracted audio",
-                    "example": "6902573c-9c6c-446c-9f32-72bf5e5554f6"
+                "schema": {
+                  "type": "object",
+                  "required": ["workflow_id"],
+                  "properties": {
+                    "workflow_id": {
+                      "type": "string",
+                      "description": "Workflow identifier - must have extracted audio",
+                      "example": "6902573c-9c6c-446c-9f32-72bf5e5554f6"
+                    },
+                    "quality": {
+                      "type": "string",
+                      "enum": ["fast", "balanced", "accurate", "best"],
+                      "description": "Transcription quality setting. Maps to Whisper models: fast=tiny, balanced=base, accurate=small, best=medium",
+                      "default": "balanced",
+                      "example": "balanced"
+                    },
+                    "language": {
+                      "type": "string",
+                      "description": "Language code for transcription (e.g., 'en', 'es', 'fr'). If not provided, language will be auto-detected",
+                      "example": "en"
+                    },
+                    "use_azure": {
+                      "type": "boolean",
+                      "description": "Force use of Azure Speech Services instead of local Whisper. Default is false (Whisper preferred)",
+                      "default": false,
+                      "example": false
+                    }
                   }
                 }
-              }
             }
           }
         },
@@ -106,6 +124,24 @@
                       "description": "Processing time in milliseconds",
                       "example": 3118
                     },
+                    "service_used": {
+                      "type": "string",
+                      "enum": ["whisper", "azure", "azure_fallback"],
+                      "description": "Which service was used for transcription",
+                      "example": "whisper"
+                    },
+                    "quality_used": {
+                      "type": "string",
+                      "enum": ["fast", "balanced", "accurate", "best"],
+                      "description": "Quality setting that was applied",
+                      "example": "balanced"
+                    },
+                    "language_override": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Language override that was applied, or null if auto-detected",
+                      "example": null
+                    },
                     "workflow_id": {
                       "type": "string",
                       "description": "Workflow identifier for subsequent operations",
@@ -133,10 +169,10 @@
                     },
                     "message": {
                       "type": "string",
-                      "example": "Audio transcribed successfully. Audio file cleaned up. Text ready for enhancement or analysis."
+                      "example": "Audio transcribed successfully using whisper. Audio file cleaned up. Text ready for enhancement or analysis."
                     }
                   },
-                  "required": ["success", "raw_text", "workflow_id", "cleanup", "next_action", "message"]
+                  "required": ["success", "raw_text", "service_used", "quality_used", "workflow_id", "cleanup", "next_action", "message"]
                 }
               }
             }
