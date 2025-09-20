@@ -465,7 +465,7 @@ export class JobStateStore {
           estimatedDurationMs = 45000; // 45 seconds default
           break;
           
-        case 'transcribe_audio':
+        case 'transcribe_audio': {
           // Estimate based on quality setting and audio duration
           const quality = inputParams?.quality || 'balanced';
           const qualityMultiplier = {
@@ -476,6 +476,7 @@ export class JobStateStore {
           };
           estimatedDurationMs = 120000 * (qualityMultiplier[quality as keyof typeof qualityMultiplier] || 0.2); // 2 min audio * multiplier
           break;
+        }
           
         case 'enhance_transcription':
           // Estimate based on text length (assume 100 chars per second)

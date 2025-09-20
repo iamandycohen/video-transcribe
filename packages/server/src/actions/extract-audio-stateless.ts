@@ -81,7 +81,7 @@ export class ExtractAudioStatelessAction {
     try {
       // Update job status to running
       await this.getJobStore().updateJobStatus(job_id, 'running');
-      await this.getJobStore().updateJobProgress(job_id, 10, 'Checking workflow state...');
+      await this.getJobStore().updateJobProgress(job_id, { progress: 10, message: 'Checking workflow state...' });
 
       if (cancellationToken?.aborted) {
         await this.getJobStore().updateJobStatus(job_id, 'cancelled');
@@ -118,7 +118,7 @@ export class ExtractAudioStatelessAction {
         return;
       }
 
-      await this.getJobStore().updateJobProgress(job_id, 30, 'Starting audio extraction...');
+      await this.getJobStore().updateJobProgress(job_id, { progress: 30, message: 'Starting audio extraction...' });
 
       if (cancellationToken?.aborted) {
         await this.getJobStore().updateJobStatus(job_id, 'cancelled');
@@ -131,7 +131,7 @@ export class ExtractAudioStatelessAction {
       // Extract audio using temp file
       const tempVideoPath = this.getReferenceService().getFilePathFromUrl(video_url);
       
-      await this.getJobStore().updateJobProgress(job_id, 50, 'Extracting audio from video...');
+      await this.getJobStore().updateJobProgress(job_id, { progress: 50, message: 'Extracting audio from video...' });
       
       const audioResult = await this.getAudioExtractor().extractAudioFromMp4(tempVideoPath);
 
@@ -141,7 +141,7 @@ export class ExtractAudioStatelessAction {
         return;
       }
 
-      await this.getJobStore().updateJobProgress(job_id, 70, 'Processing extracted audio...');
+      await this.getJobStore().updateJobProgress(job_id, { progress: 70, message: 'Processing extracted audio...' });
 
       // Read extracted audio file
       const audioBuffer = await require('fs').promises.readFile(audioResult.audioFilePath);
@@ -150,7 +150,7 @@ export class ExtractAudioStatelessAction {
       const audio_url = await this.getReferenceService().storeAudio(audioBuffer, workflow_id);
       const audio_reference = `audio_${workflow_id}_${Date.now()}`;
 
-      await this.getJobStore().updateJobProgress(job_id, 85, 'Cleaning up video file...');
+      await this.getJobStore().updateJobProgress(job_id, { progress: 85, message: 'Cleaning up video file...' });
 
       // Clean up video reference (workflow cleanup)
       const cleanupResult = await this.getReferenceService().cleanup(video_url);
@@ -161,7 +161,7 @@ export class ExtractAudioStatelessAction {
       // Get audio file info for result
       const audioFileInfo = await this.getReferenceService().getFileInfo(audio_url);
 
-      await this.getJobStore().updateJobProgress(job_id, 95, 'Finalizing extraction...');
+      await this.getJobStore().updateJobProgress(job_id, { progress: 95, message: 'Finalizing extraction...' });
 
       // Complete extract audio step with results
       const stepResult = {

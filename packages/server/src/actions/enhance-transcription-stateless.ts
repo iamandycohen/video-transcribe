@@ -77,7 +77,7 @@ export class EnhanceTranscriptionStatelessAction {
     try {
       // Update job status to running
       await this.getJobStore().updateJobStatus(job_id, 'running');
-      await this.getJobStore().updateJobProgress(job_id, 10, 'Checking workflow state...');
+      await this.getJobStore().updateJobProgress(job_id, { progress: 10, message: 'Checking workflow state...' });
 
       if (cancellationToken?.aborted) {
         await this.getJobStore().updateJobStatus(job_id, 'cancelled');
@@ -117,14 +117,14 @@ export class EnhanceTranscriptionStatelessAction {
         return;
       }
 
-      await this.getJobStore().updateJobProgress(job_id, 30, 'Starting GPT enhancement...');
+      await this.getJobStore().updateJobProgress(job_id, { progress: 30, message: 'Starting GPT enhancement...' });
 
       if (cancellationToken?.aborted) {
         await this.getJobStore().updateJobStatus(job_id, 'cancelled');
         return;
       }
 
-      await this.getJobStore().updateJobProgress(job_id, 50, 'Processing with GPT-4o...');
+      await this.getJobStore().updateJobProgress(job_id, { progress: 50, message: 'Processing with GPT-4o...' });
 
       // Enhance transcription with GPT
       const enhancementResult = await this.getEnhanceService().enhanceTranscription({
@@ -140,7 +140,7 @@ export class EnhanceTranscriptionStatelessAction {
         return;
       }
 
-      await this.getJobStore().updateJobProgress(job_id, 90, 'Finalizing enhancement...');
+      await this.getJobStore().updateJobProgress(job_id, { progress: 90, message: 'Finalizing enhancement...' });
 
       // Complete enhance transcription step with results
       const stepResult = {

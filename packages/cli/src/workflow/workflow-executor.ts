@@ -70,7 +70,7 @@ export class WorkflowExecutor {
         videoUrl = await referenceService.storeFromUrlWithProgress(
           inputSource,
           workflowId,
-          (downloaded, total, percentage) => {
+          (downloaded: number, total: number, percentage: number) => {
             if (options.verbose && percentage % 10 === 0) {
               console.log(`📥 Downloaded: ${(downloaded / 1024 / 1024).toFixed(1)}MB / ${(total / 1024 / 1024).toFixed(1)}MB (${percentage}%)`);
             }

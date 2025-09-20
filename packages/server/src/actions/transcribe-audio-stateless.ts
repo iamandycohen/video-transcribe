@@ -101,7 +101,7 @@ export class TranscribeAudioStatelessAction {
     try {
       // Update job status to running
       await this.getJobStore().updateJobStatus(job_id, 'running');
-      await this.getJobStore().updateJobProgress(job_id, 10, 'Checking workflow state...');
+      await this.getJobStore().updateJobProgress(job_id, { progress: 10, message: 'Checking workflow state...' });
 
       if (cancellationToken?.aborted) {
         await this.getJobStore().updateJobStatus(job_id, 'cancelled');
@@ -157,7 +157,7 @@ export class TranscribeAudioStatelessAction {
         return;
       }
 
-      await this.getJobStore().updateJobProgress(job_id, 30, 'Starting transcription...');
+      await this.getJobStore().updateJobProgress(job_id, { progress: 30, message: 'Starting transcription...' });
 
       if (cancellationToken?.aborted) {
         await this.getJobStore().updateJobStatus(job_id, 'cancelled');
@@ -170,7 +170,7 @@ export class TranscribeAudioStatelessAction {
       
       if (use_azure) {
         // Explicitly requested Azure Speech Services
-        await this.getJobStore().updateJobProgress(job_id, 50, 'Transcribing with Azure Speech Services...');
+        await this.getJobStore().updateJobProgress(job_id, { progress: 50, message: 'Transcribing with Azure Speech Services...' });
         serviceUsed = 'azure';
         transcriptionResult = await this.getTranscribeService().transcribeAudio({
           audioId: `audio_${workflow_id}`, // Dummy audioId for compatibility
@@ -179,7 +179,7 @@ export class TranscribeAudioStatelessAction {
       } else {
         // Use local Whisper (default) with auto-fallback to Azure
         try {
-          await this.getJobStore().updateJobProgress(job_id, 50, `Transcribing with Whisper (${quality} model)...`);
+          await this.getJobStore().updateJobProgress(job_id, { progress: 50, message: `Transcribing with Whisper (${quality} model)...` });
           
           const whisperService = this.getWhisperService();
           
@@ -197,9 +197,15 @@ export class TranscribeAudioStatelessAction {
               logger.info(`Whisper: ${progress.message}`);
               // Update job progress based on Whisper progress
               if (progress.type === 'download') {
-                this.getJobStore().updateJobProgress(job_id, 40 + (progress.progress * 0.1), `Downloading ${quality} model: ${progress.progress}%`);
+                this.getJobStore().updateJobProgress(job_id, { 
+                  progress: 40 + (progress.progress * 0.1), 
+                  message: `Downloading ${quality} model: ${progress.progress}%` 
+                });
               } else if (progress.type === 'transcription') {
-                this.getJobStore().updateJobProgress(job_id, 50 + (progress.progress * 0.3), `Transcribing: ${progress.progress}%`);
+                this.getJobStore().updateJobProgress(job_id, { 
+                  progress: 50 + (progress.progress * 0.3), 
+                  message: `Transcribing: ${progress.progress}%` 
+                });
               }
             }
           );
@@ -223,7 +229,7 @@ export class TranscribeAudioStatelessAction {
 
           // Fallback to Azure if Whisper fails
           logger.warn(`Whisper transcription failed, falling back to Azure: ${whisperError instanceof Error ? whisperError.message : 'Unknown error'}`);
-          await this.getJobStore().updateJobProgress(job_id, 60, 'Whisper failed, falling back to Azure Speech Services...');
+          await this.getJobStore().updateJobProgress(job_id, { progress: 60, message: 'Whisper failed, falling back to Azure Speech Services...' });
           serviceUsed = 'azure_fallback';
           
           transcriptionResult = await this.getTranscribeService().transcribeAudio({
@@ -248,17 +254,17 @@ export class TranscribeAudioStatelessAction {
         await this.getStateStore().failStep(workflow_id, 'transcribe_audio', {
           message: transcriptionResult.error || 'Transcription failed',
           code: 'TRANSCRIPTION_FAILED',
-          service_used: serviceUsed
+          details: { service_used: serviceUsed }
         });
         return;
       }
 
-      await this.getJobStore().updateJobProgress(job_id, 85, 'Cleaning up audio file...');
+      await this.getJobStore().updateJobProgress(job_id, { progress: 85, message: 'Cleaning up audio file...' });
 
       // Clean up audio reference (workflow cleanup)
       const cleanupResult = await this.getReferenceService().cleanup(audio_url);
 
-      await this.getJobStore().updateJobProgress(job_id, 95, 'Finalizing transcription...');
+      await this.getJobStore().updateJobProgress(job_id, { progress: 95, message: 'Finalizing transcription...' });
 
       // Complete transcribe audio step with results
       const stepResult = {

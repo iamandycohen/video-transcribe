@@ -244,6 +244,7 @@ export class ReferenceService {
       const chunks: Uint8Array[] = [];
       let downloaded = 0;
       
+      // eslint-disable-next-line no-constant-condition
       while (true) {
         // Check for cancellation
         if (cancellationToken?.aborted) {
