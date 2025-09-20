@@ -53,7 +53,7 @@ export class ExtractAudioService {
       // Check if file exists
       try {
         await fs.access(videoFilePath);
-      } catch (error) {
+      } catch {
         throw new Error('Video file not found for uploadId');
       }
 
@@ -175,7 +175,7 @@ export class ExtractAudioService {
         filePath: audioFile.filePath,
         originalVideoName: audioFile.originalVideoName
       };
-    } catch (error) {
+    } catch {
       // File doesn't exist, remove from map
       this.audioFiles.delete(audioId);
       return null;

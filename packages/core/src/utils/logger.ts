@@ -28,7 +28,7 @@ export const logger = winston.createLogger({
 import { mkdirSync } from 'fs';
 try {
   mkdirSync('logs', { recursive: true });
-} catch (error) {
+  } catch {
   // Directory already exists or other error
 }
 

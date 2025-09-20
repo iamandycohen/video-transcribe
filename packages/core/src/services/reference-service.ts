@@ -370,7 +370,7 @@ export class ReferenceService {
               stats.audioFiles++;
             }
           }
-        } catch (error) {
+        } catch {
           // File might have been deleted, skip
         }
       }

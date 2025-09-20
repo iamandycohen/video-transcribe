@@ -23,7 +23,7 @@
     "mp4",
     "azure"
   ],
-  "author": "Andy Cohen", 
+  "author": "Andy Cohen",
   "license": "MIT",
   "dependencies": {
     "@video-transcribe/core": "^1.0.0",
@@ -31,8 +31,8 @@
   },
   "devDependencies": {
     "@types/node": "^20.8.7",
-    "@typescript-eslint/eslint-plugin": "^6.21.0",
-    "@typescript-eslint/parser": "^6.21.0",
+    "@typescript-eslint/eslint-plugin": "^8.44.0",
+    "@typescript-eslint/parser": "^8.44.0",
     "eslint": "^8.52.0",
     "rimraf": "^5.0.5",
     "ts-node": "^10.9.1",

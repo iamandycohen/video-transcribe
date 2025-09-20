@@ -123,7 +123,7 @@ export class HealthCheckService {
         healthy,
         status: healthy ? 'healthy' : 'configuration_error'
       };
-    } catch (error) {
+    } catch {
       return {
         healthy: false,
         status: 'error'
@@ -157,13 +157,13 @@ export class HealthCheckService {
         const fs = await import('fs');
         await fs.promises.access(azureConfig.app.outputDir, fs.constants.W_OK);
         outputDirWritable = true;
-      } catch (error) {
+      } catch {
         // Try to create the directory
         try {
           const fs = await import('fs');
           await fs.promises.mkdir(azureConfig.app.outputDir, { recursive: true });
           outputDirWritable = true;
-        } catch (createError) {
+        } catch {
           outputDirWritable = false;
         }
       }

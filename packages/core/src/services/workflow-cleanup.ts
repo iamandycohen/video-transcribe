@@ -94,7 +94,7 @@ export class WorkflowCleanupService {
       try {
         const stats = await fs.stat(audioFile.filePath);
         spaceFreed = stats.size;
-      } catch (error) {
+      } catch {
         // File might not exist, that's okay
       }
 
@@ -182,7 +182,7 @@ export class WorkflowCleanupService {
           const filePath = path.join(this.tempDir, file);
           const stats = await fs.stat(filePath);
           totalAudioSize += stats.size;
-        } catch (error) {
+        } catch {
           // File might have been deleted, ignore
         }
       }

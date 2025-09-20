@@ -36,8 +36,8 @@
   "author": "Andy Cohen",
   "license": "MIT",
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^6.21.0",
-    "@typescript-eslint/parser": "^6.21.0",
+    "@typescript-eslint/eslint-plugin": "^8.44.0",
+    "@typescript-eslint/parser": "^8.44.0",
     "eslint": "^8.52.0",
     "eslint-config-standard": "^17.1.0",
     "rimraf": "^5.0.5",

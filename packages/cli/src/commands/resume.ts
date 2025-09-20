@@ -365,7 +365,7 @@ Sentiment: ${(enhancementResult as any).sentiment || 'Unknown'}
       });
       
       console.log('✅ Transcription completed successfully with Whisper');
-    } catch (error) {
+    } catch {
       console.log('⚠️  Whisper failed, trying Azure fallback...');
       await this.executeAzureTranscription(context, audioUrl);
     }
