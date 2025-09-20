@@ -25,15 +25,19 @@ export class TranscribeAudioStatelessAction {
     return ServiceManager.getInstance().getWhisperService();
   }
 
+  private static getJobStore() {
+    return ServiceManager.getInstance().getJobStateStore();
+  }
+
   /**
-   * Handle transcribe audio request - stateless with workflow state
+   * Handle transcribe audio request - starts background job
    * Input: { 
    *   workflow_id: string, 
    *   quality?: "fast"|"balanced"|"accurate"|"best" (defaults to "balanced"),
    *   language?: string,
    *   use_azure?: boolean (defaults to false - whisper is default)
    * }
-   * Output: { success: boolean, raw_text: string, workflow_id: string, segments: array, cleanup: object }
+   * Output: { success: boolean, job_id: string, workflow_id: string, status: string }
    */
   static async handle(req: Request, res: Response): Promise<void> {
     try {
@@ -50,16 +54,71 @@ export class TranscribeAudioStatelessAction {
       }
 
       const authMethod = AuthUtils.getAuthMethod(req);
-      logger.info(`Transcribe audio requested: workflow_id=${workflow_id} by ${authMethod}`);
+      logger.info(`Transcribe audio job requested: workflow_id=${workflow_id}, quality=${quality}, use_azure=${use_azure} by ${authMethod}`);
+
+      // Create job in JobStateStore
+      const job_id = await this.getJobStore().createJob({
+        workflow_id,
+        operation: 'transcribe_audio',
+        input_params: { workflow_id, quality, language, use_azure }
+      });
+
+      // Start the transcribe audio step in workflow
+      await this.getStateStore().startStep(workflow_id, 'transcribe_audio');
+
+      // Return job_id immediately (202 Accepted)
+      res.status(202).json({
+        success: true,
+        job_id,
+        status: 'queued',
+        progress: 0,
+        message: 'Audio transcription job started',
+        workflow_id,
+        next_action: `Poll GET /jobs/${job_id} every 2-5 seconds for progress and completion`
+      });
+
+      // Execute the job in background
+      this.executeTranscriptionJob(job_id, workflow_id, quality, language, use_azure);
+
+    } catch (error) {
+      // Handle immediate errors (before job creation)
+      ApiResponseHandler.handleError(error, res, 'Transcribe audio job creation');
+    }
+  }
+
+  /**
+   * Execute transcription job in background
+   */
+  private static async executeTranscriptionJob(
+    job_id: string, 
+    workflow_id: string, 
+    quality: string, 
+    language?: string, 
+    use_azure: boolean = false
+  ): Promise<void> {
+    const cancellationToken = this.getJobStore().getCancellationToken(job_id);
+    
+    try {
+      // Update job status to running
+      await this.getJobStore().updateJobStatus(job_id, 'running');
+      await this.getJobStore().updateJobProgress(job_id, 10, 'Checking workflow state...');
+
+      if (cancellationToken?.aborted) {
+        await this.getJobStore().updateJobStatus(job_id, 'cancelled');
+        return;
+      }
 
       // Get workflow state and verify audio reference exists
       const state = await this.getStateStore().getState(workflow_id);
       if (!state) {
-        res.status(404).json({
-          success: false,
-          error: 'Workflow not found',
-          next_action: 'Create a workflow first using POST /workflow',
-          workflow_id
+        await this.getJobStore().setJobError(job_id, {
+          code: 'WORKFLOW_NOT_FOUND',
+          message: 'Workflow not found',
+          retryable: false
+        });
+        await this.getStateStore().failStep(workflow_id, 'transcribe_audio', {
+          message: 'Workflow not found',
+          code: 'WORKFLOW_NOT_FOUND'
         });
         return;
       }
@@ -67,21 +126,17 @@ export class TranscribeAudioStatelessAction {
       // Check if extract_audio step was completed
       const extractResult = this.getStateStore().getStepResult(state, 'extract_audio');
       if (!extractResult || !extractResult.audio_url) {
-        res.status(400).json({
-          success: false,
-          error: 'No audio reference found in workflow state',
-          next_action: 'Extract audio first using POST /extract-audio with this workflow_id',
-          workflow_id,
-          current_state: {
-            extract_audio_status: this.getStateStore().getStepStatus(state, 'extract_audio'),
-            transcribe_audio_status: this.getStateStore().getStepStatus(state, 'transcribe_audio')
-          }
+        await this.getJobStore().setJobError(job_id, {
+          code: 'NO_AUDIO_REFERENCE',
+          message: 'No audio reference found in workflow state. Extract audio first.',
+          retryable: false
+        });
+        await this.getStateStore().failStep(workflow_id, 'transcribe_audio', {
+          message: 'No audio reference found',
+          code: 'NO_AUDIO_REFERENCE'
         });
         return;
       }
-
-      // Start transcribe audio step
-      await this.getStateStore().startStep(workflow_id, 'transcribe_audio');
 
       // Get audio file path from extract step result
       const audio_url = extractResult.audio_url;
@@ -90,12 +145,22 @@ export class TranscribeAudioStatelessAction {
       // Verify audio file exists
       const audioExists = await this.getReferenceService().exists(audio_url);
       if (!audioExists) {
-        res.status(404).json({
-          success: false,
-          error: 'Audio file not found or expired',
-          next_action: 'Extract audio again using POST /extract-audio with this workflow_id',
-          workflow_id
+        await this.getJobStore().setJobError(job_id, {
+          code: 'AUDIO_FILE_NOT_FOUND',
+          message: 'Audio file not found or expired. Extract audio again.',
+          retryable: false
         });
+        await this.getStateStore().failStep(workflow_id, 'transcribe_audio', {
+          message: 'Audio file not found or expired',
+          code: 'AUDIO_FILE_NOT_FOUND'
+        });
+        return;
+      }
+
+      await this.getJobStore().updateJobProgress(job_id, 30, 'Starting transcription...');
+
+      if (cancellationToken?.aborted) {
+        await this.getJobStore().updateJobStatus(job_id, 'cancelled');
         return;
       }
 
@@ -105,6 +170,7 @@ export class TranscribeAudioStatelessAction {
       
       if (use_azure) {
         // Explicitly requested Azure Speech Services
+        await this.getJobStore().updateJobProgress(job_id, 50, 'Transcribing with Azure Speech Services...');
         serviceUsed = 'azure';
         transcriptionResult = await this.getTranscribeService().transcribeAudio({
           audioId: `audio_${workflow_id}`, // Dummy audioId for compatibility
@@ -113,6 +179,8 @@ export class TranscribeAudioStatelessAction {
       } else {
         // Use local Whisper (default) with auto-fallback to Azure
         try {
+          await this.getJobStore().updateJobProgress(job_id, 50, `Transcribing with Whisper (${quality} model)...`);
+          
           const whisperService = this.getWhisperService();
           
           const whisperOptions = {
@@ -124,9 +192,15 @@ export class TranscribeAudioStatelessAction {
           const whisperResult = await whisperService.transcribeAudio(
             audioFilePath, 
             whisperOptions,
-            // Progress callback for model downloads
+            // Progress callback for model downloads and transcription
             (progress) => {
               logger.info(`Whisper: ${progress.message}`);
+              // Update job progress based on Whisper progress
+              if (progress.type === 'download') {
+                this.getJobStore().updateJobProgress(job_id, 40 + (progress.progress * 0.1), `Downloading ${quality} model: ${progress.progress}%`);
+              } else if (progress.type === 'transcription') {
+                this.getJobStore().updateJobProgress(job_id, 50 + (progress.progress * 0.3), `Transcribing: ${progress.progress}%`);
+              }
             }
           );
           
@@ -142,8 +216,14 @@ export class TranscribeAudioStatelessAction {
           };
           
         } catch (whisperError) {
+          if (cancellationToken?.aborted) {
+            await this.getJobStore().updateJobStatus(job_id, 'cancelled');
+            return;
+          }
+
           // Fallback to Azure if Whisper fails
           logger.warn(`Whisper transcription failed, falling back to Azure: ${whisperError instanceof Error ? whisperError.message : 'Unknown error'}`);
+          await this.getJobStore().updateJobProgress(job_id, 60, 'Whisper failed, falling back to Azure Speech Services...');
           serviceUsed = 'azure_fallback';
           
           transcriptionResult = await this.getTranscribeService().transcribeAudio({
@@ -153,22 +233,35 @@ export class TranscribeAudioStatelessAction {
         }
       }
 
+      if (cancellationToken?.aborted) {
+        await this.getJobStore().updateJobStatus(job_id, 'cancelled');
+        return;
+      }
+
       if (!transcriptionResult.success) {
-        res.status(400).json({
-          success: false,
-          error: transcriptionResult.error || 'Transcription failed',
-          next_action: 'Check audio quality or try extracting audio again',
-          workflow_id,
+        await this.getJobStore().setJobError(job_id, {
+          code: 'TRANSCRIPTION_FAILED',
+          message: transcriptionResult.error || 'Transcription failed',
+          retryable: true,
+          retry_after: 60000
+        });
+        await this.getStateStore().failStep(workflow_id, 'transcribe_audio', {
+          message: transcriptionResult.error || 'Transcription failed',
+          code: 'TRANSCRIPTION_FAILED',
           service_used: serviceUsed
         });
         return;
       }
 
+      await this.getJobStore().updateJobProgress(job_id, 85, 'Cleaning up audio file...');
+
       // Clean up audio reference (workflow cleanup)
       const cleanupResult = await this.getReferenceService().cleanup(audio_url);
 
+      await this.getJobStore().updateJobProgress(job_id, 95, 'Finalizing transcription...');
+
       // Complete transcribe audio step with results
-      await this.getStateStore().completeStep(workflow_id, 'transcribe_audio', {
+      const stepResult = {
         raw_text: transcriptionResult.rawText,
         confidence: transcriptionResult.confidence,
         language: transcriptionResult.language,
@@ -176,12 +269,12 @@ export class TranscribeAudioStatelessAction {
         duration: transcriptionResult.duration,
         transcription_time: transcriptionResult.transcriptionTime,
         audio_cleaned: cleanupResult.success
-      });
+      };
 
-      logger.info(`Audio transcribed successfully: workflow=${workflow_id}, text_length=${transcriptionResult.rawText?.length}, service=${serviceUsed} by ${authMethod}`);
-      
-      res.json({
-        success: true,
+      await this.getStateStore().completeStep(workflow_id, 'transcribe_audio', stepResult);
+
+      // Complete the job
+      await this.getJobStore().setJobResult(job_id, {
         raw_text: transcriptionResult.rawText,
         segments: transcriptionResult.segments,
         language: transcriptionResult.language,
@@ -197,22 +290,26 @@ export class TranscribeAudioStatelessAction {
         message: `Audio transcribed successfully using ${serviceUsed}${serviceUsed === 'azure_fallback' ? ' (fallback)' : ''}. Audio file cleaned up. Text ready for enhancement or analysis.`
       });
 
-    } catch (error) {
-      // Update state to mark failure
-      try {
-        const { workflow_id } = req.body;
-        if (workflow_id) {
-          await this.getStateStore().failStep(workflow_id, 'transcribe_audio', {
-            message: error instanceof Error ? error.message : 'Unknown transcription error',
-            code: 'TRANSCRIBE_AUDIO_FAILED',
-            details: error
-          });
-        }
-      } catch (stateError) {
-        logger.error('Failed to update state on error:', stateError);
-      }
+      await this.getJobStore().updateJobStatus(job_id, 'completed');
 
-      ApiResponseHandler.handleError(error, res, 'Transcribe audio (stateless)');
+      logger.info(`Audio transcribed successfully: workflow=${workflow_id}, text_length=${transcriptionResult.rawText?.length}, service=${serviceUsed}, job=${job_id}`);
+
+    } catch (error: any) {
+      // Fail the job and workflow step
+      await this.getJobStore().setJobError(job_id, {
+        code: 'TRANSCRIBE_AUDIO_FAILED',
+        message: error?.message || 'Unknown transcription error',
+        retryable: true,
+        retry_after: 60000
+      });
+
+      await this.getStateStore().failStep(workflow_id, 'transcribe_audio', {
+        message: error?.message || 'Unknown transcription error',
+        code: 'TRANSCRIBE_AUDIO_FAILED',
+        details: error
+      });
+
+      logger.error(`Audio transcription failed: workflow=${workflow_id}, job=${job_id}, error=${error?.message}`);
     }
   }
 }

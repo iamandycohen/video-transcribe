@@ -41,6 +41,12 @@ curl -X POST http://localhost:3000/extract-audio \
   -H "Content-Type: application/json" \
   -H "x-api-key: YOUR_API_KEY" \
   -d '{"workflow_id": "def456"}'
+# Returns: {"job_id": "xyz789", "status": "queued", "progress": 0}
+
+# Step 4: Poll extraction job until completion
+curl -X GET http://localhost:3000/jobs/xyz789 \
+  -H "x-api-key: YOUR_API_KEY"
+# Returns: {"status": "completed", "progress": 100, "results": {...}}
 ```
 
 ### 3. **Subprocess Integration**

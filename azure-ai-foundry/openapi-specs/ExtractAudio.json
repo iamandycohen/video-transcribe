@@ -22,8 +22,8 @@
   "paths": {
     "/extract-audio": {
       "post": {
-        "summary": "Extract Audio from Video",
-        "description": "Extracts audio from uploaded video and stores audio reference in workflow state.\n\nAutomatically cleans up video file after successful extraction to save space.\n\nWorkflow:\n1. Upload video using upload_video action\n2. Call this action with workflow_id\n3. Use same workflow_id with transcribe_audio action",
+        "summary": "Start Audio Extraction Job",
+        "description": "Starts a background job to extract audio from uploaded video and store audio reference in workflow state.\n\nReturns immediately with a job_id for monitoring progress. Automatically cleans up video file after successful extraction to save space.\n\nJob-Based Workflow:\n1. Upload video using upload_video action → get job_id, poll until complete\n2. Call this action with workflow_id → get new job_id\n3. Poll GET /jobs/{job_id} every 2-5 seconds until completion\n4. Use same workflow_id with transcribe_audio action",
         "operationId": "extract_audio",
         "tags": ["File Processing"],
         "requestBody": {
@@ -45,8 +45,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Audio extracted successfully",
+          "202": {
+            "description": "Audio extraction job started successfully",
             "content": {
               "application/json": {
                 "schema": {
@@ -56,37 +56,41 @@
                       "type": "boolean",
                       "example": true
                     },
+                    "job_id": {
+                      "type": "string",
+                      "description": "Job identifier for polling progress and results",
+                      "example": "job_abc123def456"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["queued"],
+                      "description": "Initial job status",
+                      "example": "queued"
+                    },
+                    "progress": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100,
+                      "description": "Initial progress percentage",
+                      "example": 0
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "Human-readable status message",
+                      "example": "Audio extraction job started"
+                    },
                     "workflow_id": {
                       "type": "string",
                       "description": "Workflow identifier for subsequent operations",
                       "example": "6902573c-9c6c-446c-9f32-72bf5e5554f6"
                     },
-                    "cleanup": {
-                      "type": "object",
-                      "description": "Video file cleanup results",
-                      "properties": {
-                        "success": {
-                          "type": "boolean",
-                          "example": true
-                        },
-                        "spaceFreed": {
-                          "type": "number",
-                          "description": "Bytes freed by cleaning up video file",
-                          "example": 6516900
-                        }
-                      }
-                    },
                     "next_action": {
                       "type": "string",
-                      "description": "Suggested next step",
-                      "example": "Transcribe the audio using transcribe_audio action with this workflow_id"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Audio extracted successfully. Video file cleaned up. Audio ready for transcription."
+                      "description": "Instructions for polling job status",
+                      "example": "Poll GET /jobs/job_abc123def456 every 2-5 seconds for progress and completion"
                     }
                   },
-                  "required": ["success", "workflow_id", "cleanup", "next_action", "message"]
+                  "required": ["success", "job_id", "status", "progress", "message", "workflow_id", "next_action"]
                 }
               }
             }

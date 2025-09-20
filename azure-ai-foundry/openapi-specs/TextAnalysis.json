@@ -22,8 +22,8 @@
   "paths": {
     "/enhance-transcription": {
       "post": {
-        "summary": "Enhance Transcription with AI",
-        "description": "Enhances raw transcription text using GPT models for better formatting, punctuation, and clarity.",
+        "summary": "Start Transcription Enhancement Job",
+        "description": "Starts a background job to enhance raw transcription text using GPT models for better formatting, punctuation, and clarity.\n\nReturns immediately with a job_id for monitoring progress. This is a job-based operation that requires polling for completion.",
         "operationId": "enhance_transcription",
         "tags": ["Text Processing"],
         "requestBody": {
@@ -46,8 +46,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Transcription enhanced successfully",
+          "202": {
+            "description": "Transcription enhancement job started successfully",
             "content": {
               "application/json": {
                 "schema": {
@@ -57,17 +57,38 @@
                       "type": "boolean",
                       "example": true
                     },
-                    "enhanced_text": {
+                    "job_id": {
                       "type": "string",
-                      "description": "AI-enhanced transcription with improved formatting and clarity"
+                      "description": "Job identifier for polling progress and results",
+                      "example": "job_enhance123abc"
                     },
-                    "workflow_id": {
+                    "status": {
                       "type": "string",
-                      "format": "uuid"
+                      "enum": ["queued"],
+                      "description": "Initial job status",
+                      "example": "queued"
+                    },
+                    "progress": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100,
+                      "description": "Initial progress percentage",
+                      "example": 0
                     },
                     "message": {
                       "type": "string",
-                      "example": "Transcription enhanced successfully."
+                      "description": "Human-readable status message",
+                      "example": "Transcription enhancement job started"
+                    },
+                    "workflow_id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "description": "Workflow identifier for subsequent operations"
+                    },
+                    "next_action": {
+                      "type": "string",
+                      "description": "Instructions for polling job status",
+                      "example": "Poll GET /jobs/job_enhance123abc every 2-5 seconds for progress and completion"
                     }
                   }
                 }

@@ -186,8 +186,8 @@ async function runJobBasedWorkflowTest() {
     }
     console.log('');
 
-    // Step 3: Extract audio (job-based) - Note: This will need to be updated when extract-audio becomes job-based
-    console.log('🚀 Step 3: Extracting audio (currently synchronous)...');
+    // Step 3: Extract audio (job-based)
+    console.log('🚀 Step 3: Starting audio extraction job...');
     currentStep = 'extract_audio';
     
     const extractResult = await apiCall('/extract-audio', {
@@ -198,13 +198,21 @@ async function runJobBasedWorkflowTest() {
     });
     
     if (!extractResult.success) {
-      throw new Error('Failed to extract audio');
+      throw new Error('Failed to start audio extraction job');
     }
-    console.log('✅ Audio extracted successfully');
+    
+    const extractJobId = extractResult.data.job_id;
+    console.log(`✅ Audio extraction job started: ${extractJobId}`);
+    
+    // Poll extraction job until completion
+    const extractJobResult = await pollJobUntilComplete(extractJobId, 'extract_audio');
+    if (!extractJobResult || extractJobResult.status !== 'completed') {
+      throw new Error('Audio extraction job failed or timed out');
+    }
     console.log('');
 
-    // Step 4: Transcribe audio (job-based) - Note: This will need to be updated when transcribe-audio becomes job-based
-    console.log('🚀 Step 4: Transcribing audio (currently synchronous)...');
+    // Step 4: Transcribe audio (job-based)
+    console.log('🚀 Step 4: Starting audio transcription job...');
     currentStep = 'transcribe_audio';
     
     const transcribeResult = await apiCall('/transcribe-audio', {
@@ -217,13 +225,21 @@ async function runJobBasedWorkflowTest() {
     });
     
     if (!transcribeResult.success) {
-      throw new Error('Failed to transcribe audio');
+      throw new Error('Failed to start audio transcription job');
     }
-    console.log('✅ Audio transcribed successfully');
+    
+    const transcribeJobId = transcribeResult.data.job_id;
+    console.log(`✅ Audio transcription job started: ${transcribeJobId}`);
+    
+    // Poll transcription job until completion
+    const transcribeJobResult = await pollJobUntilComplete(transcribeJobId, 'transcribe_audio');
+    if (!transcribeJobResult || transcribeJobResult.status !== 'completed') {
+      throw new Error('Audio transcription job failed or timed out');
+    }
     console.log('');
 
-    // Step 5: Enhance transcription (job-based) - Note: This will need to be updated when enhance-transcription becomes job-based
-    console.log('🚀 Step 5: Enhancing transcription (currently synchronous)...');
+    // Step 5: Enhance transcription (job-based)
+    console.log('🚀 Step 5: Starting transcription enhancement job...');
     currentStep = 'enhance_transcription';
     
     const enhanceResult = await apiCall('/enhance-transcription', {
@@ -234,9 +250,17 @@ async function runJobBasedWorkflowTest() {
     });
     
     if (!enhanceResult.success) {
-      throw new Error('Failed to enhance transcription');
+      throw new Error('Failed to start transcription enhancement job');
     }
-    console.log('✅ Transcription enhanced successfully');
+    
+    const enhanceJobId = enhanceResult.data.job_id;
+    console.log(`✅ Transcription enhancement job started: ${enhanceJobId}`);
+    
+    // Poll enhancement job until completion
+    const enhanceJobResult = await pollJobUntilComplete(enhanceJobId, 'enhance_transcription');
+    if (!enhanceJobResult || enhanceJobResult.status !== 'completed') {
+      throw new Error('Transcription enhancement job failed or timed out');
+    }
     console.log('');
 
     // Step 6: Get final workflow state
@@ -258,15 +282,15 @@ async function runJobBasedWorkflowTest() {
     console.log('📊 Test Summary:');
     console.log(`   ✅ Workflow ID: ${workflowId}`);
     console.log(`   ✅ Upload Job: ${uploadJobId} (job-based)`);
-    console.log(`   ✅ Audio Extraction: Completed (synchronous)`);
-    console.log(`   ✅ Audio Transcription: Completed (synchronous)`);
-    console.log(`   ✅ Text Enhancement: Completed (synchronous)`);
+    console.log(`   ✅ Audio Extraction Job: ${extractJobId} (job-based)`);
+    console.log(`   ✅ Audio Transcription Job: ${transcribeJobId} (job-based)`);
+    console.log(`   ✅ Text Enhancement Job: ${enhanceJobId} (job-based)`);
     console.log('');
-    console.log('🔮 Next Steps:');
-    console.log('   - Update extract-audio endpoint to job-based');
-    console.log('   - Update transcribe-audio endpoint to job-based');
-    console.log('   - Update enhance-transcription endpoint to job-based');
-    console.log('   - Test complete job-based workflow');
+    console.log('🎯 All operations now use job-based architecture with:');
+    console.log('   - Immediate 202 Accepted responses with job_id');
+    console.log('   - Progress tracking via GET /jobs/{job_id}');
+    console.log('   - Cancellation support via POST /jobs/{job_id}/cancel');
+    console.log('   - Non-blocking operation for Azure AI Foundry agents');
     
   } catch (error) {
     console.error('');

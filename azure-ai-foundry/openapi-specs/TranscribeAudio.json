@@ -22,8 +22,8 @@
   "paths": {
     "/transcribe-audio": {
       "post": {
-        "summary": "Transcribe Audio to Text",
-        "description": "Transcribes audio to text using local Whisper (default) with Azure Speech-to-Text fallback.\n\nUses OpenAI Whisper for local, cost-effective transcription with automatic model downloads. Falls back to Azure Speech Services if Whisper fails. Supports quality settings (fast/balanced/accurate/best), language detection/override, and service selection.\n\nAutomatically cleans up audio file after successful transcription. Stores raw_text in workflow state for enhancement and analysis.\n\nWorkflow:\n1. Extract audio using extract_audio action\n2. Call this action with workflow_id and optional parameters\n3. Use same workflow_id with text processing actions",
+        "summary": "Start Audio Transcription Job",
+        "description": "Starts a background job to transcribe audio to text using local Whisper (default) with Azure Speech-to-Text fallback.\n\nReturns immediately with a job_id for monitoring progress. Uses OpenAI Whisper for local, cost-effective transcription with automatic model downloads. Falls back to Azure Speech Services if Whisper fails. Supports quality settings (fast/balanced/accurate/best), language detection/override, and service selection.\n\nAutomatically cleans up audio file after successful transcription. Stores raw_text in workflow state for enhancement and analysis.\n\nJob-Based Workflow:\n1. Extract audio using extract_audio action → get job_id, poll until complete\n2. Call this action with workflow_id and optional parameters → get new job_id\n3. Poll GET /jobs/{job_id} every 2-5 seconds until completion\n4. Use same workflow_id with text processing actions",
         "operationId": "transcribe_audio",
         "tags": ["File Processing"],
         "requestBody": {
@@ -63,8 +63,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Audio transcribed successfully",
+          "202": {
+            "description": "Audio transcription job started successfully",
             "content": {
               "application/json": {
                 "schema": {
@@ -74,105 +74,41 @@
                       "type": "boolean",
                       "example": true
                     },
-                    "raw_text": {
+                    "job_id": {
                       "type": "string",
-                      "description": "Transcribed text from audio",
-                      "example": "This is a test video for transcription service validation."
+                      "description": "Job identifier for polling progress and results",
+                      "example": "job_xyz789abc123"
                     },
-                    "segments": {
-                      "type": "array",
-                      "description": "Detailed transcription segments with timing",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "text": {
-                            "type": "string",
-                            "description": "Segment text"
-                          },
-                          "startTime": {
-                            "type": "number",
-                            "description": "Start time in milliseconds"
-                          },
-                          "endTime": {
-                            "type": "number",
-                            "description": "End time in milliseconds"
-                          },
-                          "confidence": {
-                            "type": "number",
-                            "description": "Confidence score (0-1)"
-                          }
-                        }
-                      }
-                    },
-                    "language": {
+                    "status": {
                       "type": "string",
-                      "description": "Detected language",
-                      "example": "en-US"
+                      "enum": ["queued"],
+                      "description": "Initial job status",
+                      "example": "queued"
                     },
-                    "confidence": {
+                    "progress": {
                       "type": "number",
-                      "description": "Overall confidence score",
-                      "example": 0.8378421
+                      "minimum": 0,
+                      "maximum": 100,
+                      "description": "Initial progress percentage",
+                      "example": 0
                     },
-                    "duration": {
-                      "type": "number",
-                      "description": "Audio duration in milliseconds",
-                      "example": 3116
-                    },
-                    "transcriptionTime": {
-                      "type": "number",
-                      "description": "Processing time in milliseconds",
-                      "example": 3118
-                    },
-                    "service_used": {
+                    "message": {
                       "type": "string",
-                      "enum": ["whisper", "azure", "azure_fallback"],
-                      "description": "Which service was used for transcription",
-                      "example": "whisper"
-                    },
-                    "quality_used": {
-                      "type": "string",
-                      "enum": ["fast", "balanced", "accurate", "best"],
-                      "description": "Quality setting that was applied",
-                      "example": "balanced"
-                    },
-                    "language_override": {
-                      "type": "string",
-                      "nullable": true,
-                      "description": "Language override that was applied, or null if auto-detected",
-                      "example": null
+                      "description": "Human-readable status message",
+                      "example": "Audio transcription job started"
                     },
                     "workflow_id": {
                       "type": "string",
                       "description": "Workflow identifier for subsequent operations",
                       "example": "6902573c-9c6c-446c-9f32-72bf5e5554f6"
                     },
-                    "cleanup": {
-                      "type": "object",
-                      "description": "Audio file cleanup results",
-                      "properties": {
-                        "success": {
-                          "type": "boolean",
-                          "example": true
-                        },
-                        "spaceFreed": {
-                          "type": "number",
-                          "description": "Bytes freed by cleaning up audio file",
-                          "example": 159822
-                        }
-                      }
-                    },
                     "next_action": {
                       "type": "string",
-                      "description": "Suggested next step",
-                      "example": "Enhance transcription using enhance_transcription action with this workflow_id, or proceed directly to analysis"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Audio transcribed successfully using whisper. Audio file cleaned up. Text ready for enhancement or analysis."
+                      "description": "Instructions for polling job status",
+                      "example": "Poll GET /jobs/job_xyz789abc123 every 2-5 seconds for progress and completion"
                     }
                   },
-                  "required": ["success", "raw_text", "service_used", "quality_used", "workflow_id", "cleanup", "next_action", "message"]
+                  "required": ["success", "job_id", "status", "progress", "message", "workflow_id", "next_action"]
                 }
               }
             }

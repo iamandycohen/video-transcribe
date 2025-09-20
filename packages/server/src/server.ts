@@ -85,12 +85,12 @@ app.get('/docs', (req, res) => {
         'GET /workflow/:workflow_id': 'Get workflow state'
       },
       file_processing: {
-        'POST /upload-video': 'Upload video from URL',
-        'POST /extract-audio': 'Extract audio from video',
-        'POST /transcribe-audio': 'Transcribe audio to text (Whisper default, Azure fallback)'
+        'POST /upload-video': 'Start video upload job (job-based)',
+        'POST /extract-audio': 'Start audio extraction job (job-based)',
+        'POST /transcribe-audio': 'Start audio transcription job (job-based, Whisper default, Azure fallback)'
       },
       text_processing: {
-        'POST /enhance-transcription': 'Enhance transcription with GPT',
+        'POST /enhance-transcription': 'Start transcription enhancement job (job-based)',
         'POST /summarize-content': 'Generate content summary',
         'POST /extract-key-points': 'Extract key points',
         'POST /analyze-sentiment': 'Analyze sentiment',
@@ -103,20 +103,25 @@ app.get('/docs', (req, res) => {
       // Whisper model management available via CLI only
     },
     workflow_pattern: {
-      input_format: '{ workflow_id: string, ...references }',
-      output_format: '{ success: boolean, workflow_id: string, ...results }',
+      input_format: '{ workflow_id: string, ...parameters }',
+      job_based_output: '{ success: boolean, job_id: string, status: "queued", progress: 0, next_action: "Poll GET /jobs/{job_id}" }',
+      immediate_output: '{ success: boolean, workflow_id: string, ...results }',
       state_management: 'Agent-managed shared state in temp/workflows/',
       file_handling: 'Pass-by-reference using temp folder URLs'
     },
     example_workflow: [
       '1. POST /workflow → { workflow_id }',
-      '2. POST /upload-video { source_url, workflow_id } → { workflow_id, next_action }',
-      '3. POST /extract-audio { workflow_id } → { workflow_id, cleanup } + video cleanup',
-      '4. POST /transcribe-audio { workflow_id, quality?: "balanced" } → { raw_text, service_used: "whisper" }',
-      '5. POST /enhance-transcription { workflow_id } → { enhanced_text }',
-      '6. POST /summarize-content { workflow_id } → { summary }',
-      '// Steps 6-9 can run in parallel with enhanced_text from workflow state',
-      '// Whisper models auto-download as needed, Azure fallback on failure'
+      '2. POST /upload-video { source_url, workflow_id } → { job_id, status: "queued" }',
+      '3. Poll GET /jobs/{job_id} until status: "completed"',
+      '4. POST /extract-audio { workflow_id } → { job_id, status: "queued" }',
+      '5. Poll GET /jobs/{job_id} until status: "completed"',
+      '6. POST /transcribe-audio { workflow_id, quality?: "balanced" } → { job_id, status: "queued" }',
+      '7. Poll GET /jobs/{job_id} until status: "completed" (Whisper auto-download, Azure fallback)',
+      '8. POST /enhance-transcription { workflow_id } → { job_id, status: "queued" }',
+      '9. Poll GET /jobs/{job_id} until status: "completed"',
+      '10. POST /summarize-content { workflow_id } → { summary } (immediate)',
+      '// Steps 10+ can run in parallel using enhanced_text from workflow state',
+      '// Job-based operations support progress tracking and cancellation'
     ],
     authentication: 'X-API-Key header or query parameter'
   });
