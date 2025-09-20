@@ -9,7 +9,7 @@ export type StepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipp
 export interface StepError {
   message: string;
   code?: string;
-  details?: any;
+  details?: unknown;
 }
 
 // Base step interface that all workflow steps extend

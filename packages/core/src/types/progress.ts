@@ -164,7 +164,7 @@ export class ProgressReporters {
   /**
    * WebSocket progress reporter for real-time updates
    */
-  static websocket(ws: any): ProgressCallback {
+  static websocket(ws: { readyState: number; send: (data: string) => void }): ProgressCallback {
     return (event: ProgressEvent) => {
       if (ws.readyState === 1) { // WebSocket.OPEN
         ws.send(JSON.stringify({
