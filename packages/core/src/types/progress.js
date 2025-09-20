@@ -19,7 +19,7 @@ class ProgressAggregator {
             return;
         step.currentProgress = progress;
         let totalProgress = 0;
-        for (const [name, stepData] of this.steps) {
+        for (const [, stepData] of this.steps) {
             totalProgress += stepData.weight * (stepData.currentProgress / 100);
         }
         this.callback({

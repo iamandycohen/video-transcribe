@@ -10,12 +10,13 @@ Each JSON file in this directory represents a **separate Azure AI Foundry Action
 
 | File | Action Name | Description | Operations |
 |------|-------------|-------------|------------|
-| `CreateWorkflow.json` | **CreateWorkflow** | Creates a new workflow for video transcription processing | `POST /workflow` |
+| `CreateWorkflow.json` | **CreateWorkflow** | Creates a new workflow (immediate) | `POST /workflow` |
+| `UploadVideo.json` | **UploadVideo** | Starts video upload job from URL (returns job_id) | `POST /upload-video` |
+| `ExtractAudio.json` | **ExtractAudio** | Starts audio extraction job (returns job_id) | `POST /extract-audio` |
+| `TranscribeAudio.json` | **TranscribeAudio** | Starts transcription job using Whisper (default) or Azure Speech (returns job_id) | `POST /transcribe-audio` |
+| `TextAnalysis.json` | **TextAnalysis** | All text processing operations (mixed: job-based + immediate) | `POST /enhance-transcription` (job)<br>`POST /summarize-content` (immediate)<br>`POST /extract-key-points` (immediate)<br>`POST /analyze-sentiment` (immediate)<br>`POST /identify-topics` (immediate) |
+| `JobManagement.json` | **GetJobStatus / CancelJob** | Job management operations | `GET /jobs/{job_id}`<br>`POST /jobs/{job_id}/cancel` |
 | `GetWorkflowState.json` | **GetWorkflowState** | Retrieves the current state of a workflow | `GET /workflow/{workflow_id}` |
-| `UploadVideo.json` | **UploadVideo** | Downloads video from URL and associates with workflow | `POST /upload-video` |
-| `ExtractAudio.json` | **ExtractAudio** | Extracts audio from uploaded video | `POST /extract-audio` |
-| `TranscribeAudio.json` | **TranscribeAudio** | Transcribes audio using Whisper (default) or Azure Speech | `POST /transcribe-audio` |
-| `TextAnalysis.json` | **TextAnalysis** | All AI-powered text processing operations | `POST /enhance-transcription`<br>`POST /summarize-content`<br>`POST /extract-key-points`<br>`POST /analyze-sentiment`<br>`POST /identify-topics` |
 | `HealthCheck.json` | **HealthCheck** | Checks service health and capabilities | `GET /health` |
 
 
@@ -48,12 +49,23 @@ graph TD
 ```
 
 **Step-by-step:**
-1. **CreateWorkflow** - Get a `workflow_id`
-2. **UploadVideo** - Download video from URL using `workflow_id`
-3. **ExtractAudio** - Extract audio from video using `workflow_id`
-4. **TranscribeAudio** - Convert audio to text using `workflow_id`
-5. **TextAnalysis** - Enhance and analyze the transcription using `workflow_id`
-6. **GetWorkflowState** - Check final results using `workflow_id`
+1. **CreateWorkflow** - Get a `workflow_id` (immediate)
+2. **UploadVideo** - Start video download job, get `job_id`
+3. **GetJobStatus** - Poll job until completion, then continue
+4. **ExtractAudio** - Start audio extraction job, get `job_id`
+5. **GetJobStatus** - Poll job until completion, then continue
+6. **TranscribeAudio** - Start transcription job, get `job_id`
+7. **GetJobStatus** - Poll job until completion, then continue
+8. **TextAnalysis** - Use `/enhance-transcription` (job-based) for enhancement, get `job_id`
+9. **GetJobStatus** - Poll enhancement job until completion
+10. **TextAnalysis** - Use other operations (`/summarize-content`, `/extract-key-points`, etc.) for immediate analysis
+11. **GetWorkflowState** - Check final results using `workflow_id`
+
+**Job-Based Pattern:**
+- Long-running operations now return `job_id` immediately (202 Accepted)
+- Poll `GET /jobs/{job_id}` every 2-5 seconds for progress
+- Cancel jobs with `POST /jobs/{job_id}/cancel` if needed
+- Proceed to next step when job status becomes 'completed'
 
 ## Key Features
 
@@ -118,8 +130,9 @@ https://video-transcribe-api.calmocean-ce622c12.eastus2.azurecontainerapps.io
 - Automatic model downloads as needed
 
 ### TextAnalysis
-- **Multi-operation action** with 5 text processing endpoints
-- Can run enhancement first, then analysis operations in parallel
+- **Multi-operation action** with 5 text processing endpoints in one file
+- **Mixed behavior**: `/enhance-transcription` is job-based (returns job_id), others are immediate
+- Enhancement should be run first, then analysis operations can run in parallel
 - All operations require transcribed text in workflow state
 
 ### GetWorkflowState  

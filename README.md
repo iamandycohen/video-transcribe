@@ -153,10 +153,23 @@ const workflowId = await services.getAgentStateStore().createWorkflow();
 # Start the API server
 node packages/server/dist/server.js
 
-# Call from any agent
-curl -X POST http://localhost:3000/transcribe \
+# Job-based workflow example
+# 1. Create workflow
+curl -X POST http://localhost:3000/workflow \
   -H "Content-Type: application/json" \
-  -d '{"videoPath": "./video.mp4", "enhance": true}'
+  -H "x-api-key: YOUR_API_KEY"
+
+# 2. Upload video (returns job_id)
+curl -X POST http://localhost:3000/upload-video \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -d '{"workflow_id": "abc123", "source_url": "https://example.com/video.mp4"}'
+
+# 3. Poll job status until completion
+curl -X GET http://localhost:3000/jobs/job_xyz789 \
+  -H "x-api-key: YOUR_API_KEY"
+
+# 4. Continue with next step using workflow_id
 ```
 
 #### 4. Autonomous Agent
@@ -266,11 +279,19 @@ video-transcribe-server
 ```
 
 #### API Endpoints
+
+**Job-Based Operations (return job_id, require polling):**
+- `POST /upload-video` - Download video from URL (returns job_id)
+- `POST /extract-audio` - Extract audio from video (returns job_id)
+- `POST /transcribe-audio` - Transcribe audio to text using Whisper/Azure (returns job_id)
+- `POST /enhance-transcription` - Enhance transcription with GPT (returns job_id)
+
+**Job Management:**
+- `GET /jobs/{job_id}` - Poll job status, progress, and results
+- `POST /jobs/{job_id}/cancel` - Cancel running or queued jobs
+
+**Quick Operations (immediate response):**
 - `POST /workflow` - Create a new workflow
-- `POST /upload-video` - Upload video for processing
-- `POST /extract-audio` - Extract audio from video
-- `POST /transcribe-audio` - Transcribe audio to text (Whisper default, supports quality/language options)
-- `POST /enhance-transcription` - Enhance with GPT
 - `POST /summarize-content` - Generate content summary
 - `POST /extract-key-points` - Extract key points
 - `POST /analyze-sentiment` - Analyze sentiment

@@ -11,11 +11,27 @@ Step-by-step instructions for adding video transcription actions to your Azure A
 
 ## 📋 Actions to Add
 
-You'll be adding **3 separate actions** to your agent:
+You'll be adding **10 separate actions** to your agent for complete video transcription workflow:
 
-1. **Upload Video** - Users upload video files and get upload IDs
-2. **Transcribe Video** - Process uploaded videos using upload IDs
-3. **Health Check** - Check service status
+### Core Workflow Actions (Job-Based):
+1. **UploadVideo** - Download video from URL and create workflow (returns job_id)
+2. **ExtractAudio** - Extract audio from uploaded video (returns job_id)
+3. **TranscribeAudio** - Convert audio to text using Whisper/Azure Speech (returns job_id)
+4. **EnhanceTranscription** - Improve transcription quality with GPT-4o (returns job_id)
+
+### Job Management Actions:
+5. **GetJobStatus** - Poll job status, progress, and results
+6. **CancelJob** - Cancel running or queued background jobs
+
+### Analysis Actions (Quick):
+7. **SummarizeContent** - Generate AI-powered content summaries
+8. **ExtractKeyPoints** - Extract bullet-point key insights
+9. **AnalyzeSentiment** - Analyze emotional tone with confidence scores
+10. **IdentifyTopics** - Identify main discussion topics
+
+### Utility Actions:
+11. **GetWorkflowState** - Check workflow progress and retrieve results
+12. **HealthCheck** - Check service status and capabilities
 
 ## 🤖 Step-by-Step Setup
 
@@ -32,20 +48,25 @@ You'll be adding **3 separate actions** to your agent:
 
 ### Step 3: Add Actions (Repeat for Each Action)
 
+For each of the 12 actions listed above:
+
 1. Click **"Add an action"** or **"Edit an action"**
 2. Choose **"OpenAPI 3.0 specified tool"**
+3. Follow the configuration pattern below
 
-### Step 4: Configure Upload Video Action
+### Step 4: Action Configuration Pattern
+
+**For each action, follow this pattern:**
 
 **Create Custom Tool - Step 1: Tool Details**
-- **Name**: `Upload Video`
-- **Description**: `Upload MP4 video files and get unique identifier for processing`
+- **Name**: Use the action name (e.g., `UploadVideo`, `GetJobStatus`, etc.)
+- **Description**: Use the description from the action list above
 - Click **"Next"**
 
 **Create Custom Tool - Step 2: Define Schema**
 - **Authentication method**: `Managed Identity` ✅
 - **Audience**: `https://video-transcribe-api.calmocean-ce622c12.eastus2.azurecontainerapps.io`
-- **OpenAPI Schema**: Copy and paste the complete JSON from `azure-ai-foundry/openapi-specs/upload_video.json`
+- **OpenAPI Schema**: Copy and paste the complete JSON from the corresponding file in `azure-ai-foundry/openapi-specs/`
 - Click **"Next"**
 
 **Create Custom Tool - Step 3: Review**
@@ -53,75 +74,73 @@ You'll be adding **3 separate actions** to your agent:
 - Check that the schema validation passes
 - Click **"Create Tool"** button to finalize
 
-### Step 5: Configure Transcribe Video Action
+### Step 5: OpenAPI Spec File Mapping
 
-**Create Custom Tool - Step 1: Tool Details**
-- **Name**: `Transcribe Video`
-- **Description**: `Transcribe uploaded videos using upload ID with AI enhancement, summary, and analysis`
-- Click **"Next"**
+Use these OpenAPI spec files for each action:
 
-**Create Custom Tool - Step 2: Define Schema**
-- **Authentication method**: `Managed Identity` ✅
-- **Audience**: `https://video-transcribe-api.calmocean-ce622c12.eastus2.azurecontainerapps.io`
-- **OpenAPI Schema**: Copy and paste the complete JSON from `azure-ai-foundry/openapi-specs/transcribe_video.json`
-- Click **"Next"**
-
-**Create Custom Tool - Step 3: Review**
-- Verify all configurations are correct
-- Check that the schema validation passes
-- Click **"Create Tool"** button to finalize
-
-### Step 6: Configure Health Check Action
-
-**Create Custom Tool - Step 1: Tool Details**
-- **Name**: `Health Check`
-- **Description**: `Check video transcription service health status and capabilities`
-- Click **"Next"**
-
-**Create Custom Tool - Step 2: Define Schema**
-- **Authentication method**: `Managed Identity` ✅
-- **Audience**: `https://video-transcribe-api.calmocean-ce622c12.eastus2.azurecontainerapps.io`
-- **OpenAPI Schema**: Copy and paste the complete JSON from `azure-ai-foundry/openapi-specs/health_check.json`
-- Click **"Next"**
-
-**Create Custom Tool - Step 3: Review**
-- Verify all configurations are correct
-- Check that the schema validation passes
-- Click **"Create Tool"** button to finalize
+| Action Name | OpenAPI Spec File |
+|-------------|-------------------|
+| UploadVideo | `UploadVideo.json` |
+| ExtractAudio | `ExtractAudio.json` |
+| TranscribeAudio | `TranscribeAudio.json` |
+| EnhanceTranscription | `EnhanceTranscription.json` |
+| GetJobStatus | `JobManagement.json` (GetJobStatus operation) |
+| CancelJob | `JobManagement.json` (CancelJob operation) |
+| SummarizeContent | `SummarizeContent.json` |
+| ExtractKeyPoints | `ExtractKeyPoints.json` |
+| AnalyzeSentiment | `AnalyzeSentiment.json` |
+| IdentifyTopics | `IdentifyTopics.json` |
+| GetWorkflowState | `GetWorkflowState.json` |
+| HealthCheck | `HealthCheck.json` |
 
 ## 🧪 Test Your Setup
 
-### Expected Workflow
+### Expected Job-Based Workflow
 
 Test with a conversation like:
 
 ```
-User: "Please upload and transcribe this video for me: [uploads video file]"
+User: "Please transcribe this video: https://example.com/video.mp4"
 
 Expected agent behavior:
-1. Agent calls upload_video action → receives uploadId
-2. Agent calls transcribe_video action with uploadId → receives transcription results
-3. Agent presents transcription, summary, key points, topics, and sentiment to user
+1. Agent calls UploadVideo action → receives job_id and workflow_id
+2. Agent polls GetJobStatus until upload completes
+3. Agent calls ExtractAudio action → receives new job_id
+4. Agent polls GetJobStatus until audio extraction completes
+5. Agent calls TranscribeAudio action → receives transcription job_id
+6. Agent polls GetJobStatus until transcription completes
+7. Agent calls EnhanceTranscription action → receives enhancement job_id
+8. Agent polls GetJobStatus until enhancement completes
+9. Agent optionally calls analysis actions (SummarizeContent, etc.)
+10. Agent presents final results with workflow_id reference
 ```
 
 ### Test Individual Actions
 
-**Test Upload:**
+**Test Job Management:**
 ```
-User: "Can you help me upload a video?"
-- Agent should offer to use the upload_video action
+User: "Can you check the status of job abc123?"
+- Agent should call GetJobStatus action with the job_id
 ```
 
 **Test Health Check:**
 ```
 User: "Is the transcription service working?"
-- Agent should call health_check action and report status
+- Agent should call HealthCheck action and report status
+```
+
+**Test Cancellation:**
+```
+User: "Cancel that transcription job"
+- Agent should call CancelJob action with appropriate job_id
 ```
 
 **Test Full Workflow:**
 ```
 User: "I need to transcribe this meeting recording and get a summary"
-- Agent should guide through upload → transcribe → present results
+- Agent should guide through the complete job-based workflow
+- Agent should provide progress updates during long-running operations
+- Agent should handle any job failures gracefully
 ```
 
 ## 🔐 Authentication Details

@@ -4,7 +4,7 @@
 `C:\code\video-transcribe`
 
 ## ✨ Latest Update
-**Multi-Package Monorepo**: Refactored to packages/core (library), packages/cli (command-line), packages/server (API). Enhanced ServiceManager architecture with consistent singleton pattern.
+**Job-Based Architecture**: Implemented background job processing for long-running operations with progress tracking, cancellation support, and agent-friendly polling patterns. All upload, extract, transcribe, and enhance operations now return job_id for asynchronous execution.
 
 ## ⚡ Quick Commands
 
@@ -25,26 +25,28 @@ node packages/server/dist/server.js
 
 ## 🎯 What This Agent Does
 
-**Step-Based Workflow with State Tracking:**
+**Job-Based Workflow with Progress Tracking:**
 
-Input: MP4 video file
+Input: MP4 video URL
 ↓
-**Step 1**: Upload Video (with status tracking)
+**Job 1**: Upload Video → Poll job status until complete
 ↓ 
-**Step 2**: Audio extraction (FFmpeg) → auto-cleanup video
+**Job 2**: Audio extraction (FFmpeg) → Poll job status until complete
 ↓
-**Step 3**: Transcription (Azure Speech-to-Text) → auto-cleanup audio
+**Job 3**: Transcription (Whisper/Azure) → Poll job status until complete
 ↓
-AI Enhancement (Your GPT models: gpt-4o-transcribe, gpt-audio)
+**Job 4**: AI Enhancement (GPT-4o) → Poll job status until complete
 ↓
 Output: Transcription + Summary + Key Points + Topics + Sentiment
 
+**Key Features**: Real-time progress (0-100%), cancellation support, detailed error handling
+
 ## 🔗 Integration Options
 
-1. **CLI**: `node dist/index.js transcribe video.mp4`
-2. **HTTP API**: POST to `/transcribe` endpoint
+1. **CLI**: `node packages/cli/dist/cli.js transcribe video.mp4`
+2. **HTTP API**: Job-based endpoints with polling (see test-job-based-workflow.js)
 3. **Agent Tool**: For LangChain, AutoGen, CrewAI, etc.
-4. **Azure AI Foundry**: Web interface agent
+4. **Azure AI Foundry**: 12 actions with job management support
 
 ## 🎬 Need a Test Video?
 

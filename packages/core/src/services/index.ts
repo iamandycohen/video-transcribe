@@ -6,6 +6,7 @@
 // Core Services
 export { ServiceManager } from './service-manager';
 export { AgentStateStore } from './agent-state-store';
+export { JobStateStore } from './job-state-store';
 export { ReferenceService } from './reference-service';
 
 // Processing Services
@@ -35,6 +36,14 @@ export type {
   AgentState, 
   LegacyAgentState
 } from './agent-state-store';
+
+export type {
+  JobState,
+  JobStatus,
+  JobOperation,
+  JobError,
+  JobProgressUpdate
+} from './job-state-store';
 
 export type { FileReference } from './reference-service';
 

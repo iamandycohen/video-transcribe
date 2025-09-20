@@ -15,18 +15,32 @@ const tools = [new VideoTranscriptionTool()];
 const agent = createAgent({ tools, llm: chatModel });
 ```
 
-### 2. **API Server Integration**
-Run as a microservice that agents call via HTTP:
+### 2. **API Server Integration** (Job-Based)
+Run as a microservice that agents call via HTTP with job polling:
 
 ```bash
 # Start the API server
 npm run build
-npm run api-server
+npm run dev:server
 
-# Agents call via HTTP
+# Agents call via HTTP - Job-based workflow
+# Step 1: Start upload job
 curl -X POST http://localhost:3000/upload-video \
   -H "Content-Type: application/json" \
+  -H "x-api-key: YOUR_API_KEY" \
   -d '{"source_url": "http://example.com/video.mp4"}'
+# Returns: {"job_id": "abc123", "workflow_id": "def456", "status": "queued"}
+
+# Step 2: Poll job status
+curl -X GET http://localhost:3000/jobs/abc123 \
+  -H "x-api-key: YOUR_API_KEY"
+# Returns: {"status": "completed", "progress": 100, "results": {...}}
+
+# Step 3: Continue with next operation using workflow_id
+curl -X POST http://localhost:3000/extract-audio \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -d '{"workflow_id": "def456"}'
 ```
 
 ### 3. **Subprocess Integration**
@@ -133,21 +147,47 @@ File Upload ──▶ Queue ──▶ Transcription Agent ──▶ Results Queu
 
 ## 🎧 Whisper Integration Options
 
-### API Integration with Whisper
+### API Integration with Whisper (Job-Based)
 ```javascript
-// Basic Whisper transcription (default)
+// Basic Whisper transcription (default) - Job-based
 const response = await fetch('/transcribe-audio', {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 
+    'Content-Type': 'application/json',
+    'x-api-key': 'YOUR_API_KEY'
+  },
   body: JSON.stringify({
     workflow_id: workflowId
   })
 });
+// Returns: {"job_id": "xyz789", "status": "queued", "progress": 0}
+
+// Poll job status until completion
+const pollJobStatus = async (jobId) => {
+  while (true) {
+    const statusResponse = await fetch(`/jobs/${jobId}`, {
+      headers: { 'x-api-key': 'YOUR_API_KEY' }
+    });
+    const status = await statusResponse.json();
+    
+    if (status.status === 'completed') {
+      return status.results;
+    } else if (status.status === 'failed') {
+      throw new Error(status.error);
+    }
+    
+    // Wait 2 seconds before polling again
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+};
 
 // Whisper with quality and language options
 const response = await fetch('/transcribe-audio', {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 
+    'Content-Type': 'application/json',
+    'x-api-key': 'YOUR_API_KEY'
+  },
   body: JSON.stringify({
     workflow_id: workflowId,
     quality: 'accurate',      // fast|balanced|accurate|best
@@ -159,7 +199,10 @@ const response = await fetch('/transcribe-audio', {
 // Force Azure Speech Services
 const response = await fetch('/transcribe-audio', {
   method: 'POST', 
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 
+    'Content-Type': 'application/json',
+    'x-api-key': 'YOUR_API_KEY'
+  },
   body: JSON.stringify({
     workflow_id: workflowId,
     use_azure: true           // bypass Whisper, use Azure directly

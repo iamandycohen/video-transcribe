@@ -20,6 +20,9 @@ import {
   AnalyzeSentimentStatelessAction,
   IdentifyTopicsStatelessAction
 } from './actions/text-analysis-stateless';
+// Import job management actions
+import { GetJobStatusAction } from './actions/get-job-status';
+import { CancelJobAction } from './actions/cancel-job';
 // WhisperManagementAction removed - not needed for agent-facing API
 
 const app = express();
@@ -63,6 +66,10 @@ app.post('/extract-key-points', authMiddleware, (req, res) => ExtractKeyPointsSt
 app.post('/analyze-sentiment', authMiddleware, (req, res) => AnalyzeSentimentStatelessAction.handle(req, res));
 app.post('/identify-topics', authMiddleware, (req, res) => IdentifyTopicsStatelessAction.handle(req, res));
 
+// Job management endpoints (for background job monitoring and control)
+app.get('/jobs/:job_id', authMiddleware, (req, res) => GetJobStatusAction.handle(req, res));
+app.post('/jobs/:job_id/cancel', authMiddleware, (req, res) => CancelJobAction.handle(req, res));
+
 // Whisper management removed from agent-facing API - use CLI for model management
 
 // API documentation endpoint
@@ -88,6 +95,10 @@ app.get('/docs', (req, res) => {
         'POST /extract-key-points': 'Extract key points',
         'POST /analyze-sentiment': 'Analyze sentiment',
         'POST /identify-topics': 'Identify topics'
+      },
+      job_management: {
+        'GET /jobs/:job_id': 'Get job status and progress',
+        'POST /jobs/:job_id/cancel': 'Cancel running or queued job'
       },
       // Whisper model management available via CLI only
     },
@@ -135,11 +146,33 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-  logger.info(`🚀 Video Transcription Agent (Stateless) API server running on port ${PORT}`);
-  logger.info(`📋 API Documentation: http://localhost:${PORT}/docs`);
-  logger.info(`🏥 Health Check: http://localhost:${PORT}/health`);
-  logger.info('🧠 Architecture: Agent-managed shared state with pass-by-reference files');
+// Initialize services on startup
+async function initializeServices() {
+  try {
+    // Import ServiceManager to initialize the JobStateStore
+    const { ServiceManager } = require('@video-transcribe/core');
+    const serviceManager = ServiceManager.getInstance();
+    
+    // Initialize the JobStateStore
+    const jobStore = serviceManager.getJobStateStore();
+    await jobStore.initialize();
+    
+    logger.info('✅ Services initialized successfully');
+  } catch (error) {
+    logger.error('❌ Failed to initialize services:', error);
+    process.exit(1);
+  }
+}
+
+// Start server with service initialization
+initializeServices().then(() => {
+  app.listen(PORT, () => {
+    logger.info(`🚀 Video Transcription Agent (Stateless) API server running on port ${PORT}`);
+    logger.info(`📋 API Documentation: http://localhost:${PORT}/docs`);
+    logger.info(`🏥 Health Check: http://localhost:${PORT}/health`);
+    logger.info('🧠 Architecture: Agent-managed shared state with pass-by-reference files');
+    logger.info('🔧 Job-based background operations with progress tracking and cancellation');
+  });
 });
 
 export default app;

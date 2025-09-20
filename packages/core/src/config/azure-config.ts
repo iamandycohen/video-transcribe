@@ -1,8 +1,29 @@
 import dotenv from 'dotenv';
+import path from 'path';
+
+// Find the project root (where package.json with workspaces is located)
+const findProjectRoot = (): string => {
+  let currentDir = __dirname;
+  while (currentDir !== path.dirname(currentDir)) {
+    try {
+      const packageJsonPath = path.join(currentDir, 'package.json');
+      const packageJson = require(packageJsonPath);
+      if (packageJson.workspaces) {
+        return currentDir;
+      }
+    } catch {
+      // Continue searching
+    }
+    currentDir = path.dirname(currentDir);
+  }
+  return process.cwd(); // Fallback to current working directory
+};
+
+const projectRoot = findProjectRoot();
 
 // Load environment variables (local files take precedence)
-dotenv.config({ path: '.env.local' });
-dotenv.config(); // Load .env as fallback
+dotenv.config({ path: path.join(projectRoot, '.env.local') });
+dotenv.config({ path: path.join(projectRoot, '.env') });
 
 export interface AzureConfig {
   subscriptionId: string;

@@ -1,8 +1,8 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Upload Video Action - Stateless",
-    "description": "Downloads video from URL and associates it with a workflow for processing.\n\nThis action downloads video files from remote URLs and stores them with a workflow reference. The workflow_id must be obtained from the create_workflow action first.\n\nPerfect for Azure AI Foundry agent workflows where users provide video URLs for transcription processing.",
+    "title": "Upload Video Action - Job-Based",
+    "description": "Starts a background job to download video from URL and associate it with a workflow.\n\nThis action creates a background job for downloading video files from remote URLs. Returns immediately with a job_id for progress monitoring. The workflow_id must be obtained from the create_workflow action first.\n\nJob-based design enables:\n- Real-time progress tracking during large video downloads\n- Cancellation support for long-running downloads\n- Non-blocking operation for Azure AI Foundry agents\n- Proper error handling and retry logic\n\nPerfect for Azure AI Foundry agent workflows with large video files or unreliable network connections.",
     "version": "2.0.0-stateless",
     "contact": {
       "name": "Andy Cohen",
@@ -22,8 +22,8 @@
   "paths": {
     "/upload-video": {
       "post": {
-        "summary": "Upload Video to Workflow",
-        "description": "Downloads video from URL and associates it with a workflow.\n\nRequires workflow_id from create_workflow action. Stores video reference in workflow state for subsequent operations.\n\nWorkflow:\n1. Get workflow_id from create_workflow action\n2. Call this action with workflow_id and video URL\n3. Use same workflow_id with extract_audio action",
+        "summary": "Start Video Upload Job",
+        "description": "Starts a background job to download video from URL and associate it with a workflow.\n\nReturns immediately with a job_id for monitoring progress. Requires workflow_id from create_workflow action.\n\nJob-Based Workflow:\n1. Get workflow_id from create_workflow action\n2. Call this action with workflow_id and video URL → receives job_id\n3. Poll GET /jobs/{job_id} every 2-5 seconds until completion\n4. When job completes, use same workflow_id with extract_audio action\n\nProgress Tracking:\n- Real-time download progress (MB downloaded, percentage)\n- Estimated completion time\n- Cancellation support via POST /jobs/{job_id}/cancel",
         "operationId": "upload_video",
         "tags": ["File Processing"],
         "requestBody": {
@@ -51,8 +51,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Video uploaded and associated with workflow successfully",
+          "202": {
+            "description": "Video upload job started successfully",
             "content": {
               "application/json": {
                 "schema": {
@@ -60,40 +60,45 @@
                   "properties": {
                     "success": {
                       "type": "boolean",
+                      "description": "Always true for successful job creation",
                       "example": true
+                    },
+                    "job_id": {
+                      "type": "string",
+                      "description": "Unique identifier for the background upload job",
+                      "pattern": "^job_[a-fA-F0-9-]{36}$",
+                      "example": "job_123e4567-e89b-12d3-a456-426614174000"
                     },
                     "workflow_id": {
                       "type": "string",
                       "description": "Workflow identifier for subsequent operations",
                       "example": "6902573c-9c6c-446c-9f32-72bf5e5554f6"
                     },
-                    "reference_id": {
+                    "status": {
                       "type": "string",
-                      "description": "File reference identifier stored in workflow state",
-                      "example": "file://temp/video_6902573c-9c6c-446c-9f32-72bf5e5554f6_abc123.mp4"
+                      "enum": ["queued"],
+                      "description": "Initial job status",
+                      "example": "queued"
+                    },
+                    "progress": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100,
+                      "description": "Initial progress (always 0)",
+                      "example": 0
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "Human-readable status message",
+                      "example": "Video upload job started"
                     },
                     "next_action": {
                       "type": "string",
-                      "description": "Suggested next step in the workflow",
-                      "example": "Use workflow_id with extract_audio action to continue processing"
-                    },
-                    "file_info": {
-                      "type": "object",
-                      "properties": {
-                        "size": {
-                          "type": "integer",
-                          "description": "File size in bytes",
-                          "example": 15728640
-                        },
-                        "contentType": {
-                          "type": "string",
-                          "description": "MIME type of the uploaded file",
-                          "example": "video/mp4"
-                        }
-                      }
+                      "description": "Instructions for monitoring job progress",
+                      "example": "Poll GET /jobs/job_123e4567-e89b-12d3-a456-426614174000 every 2-5 seconds for progress and completion"
                     }
                   },
-                  "required": ["success", "workflow_id", "reference_id", "next_action"]
+                  "required": ["success", "job_id", "workflow_id", "status", "progress", "message", "next_action"]
                 }
               }
             }

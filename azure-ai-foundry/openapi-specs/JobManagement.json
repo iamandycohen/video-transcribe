@@ -1,0 +1,567 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "JobManagement",
+    "version": "1.0.0",
+    "description": "Manages background jobs for long-running operations.\n\nThis action provides comprehensive job management capabilities for video upload, audio extraction, transcription, and enhancement operations. Includes job status polling, progress tracking, and cancellation support.\n\nEssential for Azure AI Foundry agents to:\n- Monitor progress of long-running operations\n- Retrieve results when jobs complete\n- Cancel jobs when requirements change\n- Handle errors and retry logic\n\nSupports the complete job lifecycle: queued → running → completed/failed/cancelled"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local development server"
+    }
+  ],
+  "paths": {
+    "/jobs/{job_id}": {
+      "get": {
+        "summary": "Get job status and progress",
+        "description": "Retrieves the current status, progress, and results of a background job.\n\nUse this endpoint to:\n1. Check if a job is still running, completed, failed, or cancelled\n2. Get real-time progress updates (0-100%)\n3. Retrieve job results when completed\n4. Get error details if the job failed\n\nPolling Pattern for Agents:\n- Poll every 2-5 seconds while status is 'queued' or 'running'\n- Stop polling when status becomes 'completed', 'failed', or 'cancelled'\n- Use exponential backoff if polling frequently (start at 2s, max 30s)\n\nJob Lifecycle:\nqueued → running → completed/failed/cancelled",
+        "operationId": "getJobStatus",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier for the background job",
+            "schema": {
+              "type": "string",
+              "pattern": "^job_[a-fA-F0-9-]{36}$",
+              "example": "job_123e4567-e89b-12d3-a456-426614174000"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job status retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStatusResponse"
+                },
+                "examples": {
+                  "queued_job": {
+                    "summary": "Job waiting to start",
+                    "value": {
+                      "success": true,
+                      "job_id": "job_123e4567-e89b-12d3-a456-426614174000",
+                      "workflow_id": "wf_987fcdeb-51a2-43d1-b678-123456789abc",
+                      "operation": "upload_video",
+                      "status": "queued",
+                      "progress": 0,
+                      "message": "Video upload job queued",
+                      "created_at": "2024-01-15T10:30:00.000Z",
+                      "started_at": null,
+                      "completed_at": null,
+                      "estimated_completion": "2024-01-15T10:32:00.000Z",
+                      "result": null,
+                      "error": null,
+                      "next_action": "Continue polling every 2-3 seconds until job starts"
+                    }
+                  },
+                  "running_job": {
+                    "summary": "Job currently executing",
+                    "value": {
+                      "success": true,
+                      "job_id": "job_123e4567-e89b-12d3-a456-426614174000",
+                      "workflow_id": "wf_987fcdeb-51a2-43d1-b678-123456789abc",
+                      "operation": "upload_video",
+                      "status": "running",
+                      "progress": 75,
+                      "message": "Downloaded 150MB of 200MB (75%)",
+                      "created_at": "2024-01-15T10:30:00.000Z",
+                      "started_at": "2024-01-15T10:30:05.000Z",
+                      "completed_at": null,
+                      "estimated_completion": "2024-01-15T10:31:30.000Z",
+                      "result": null,
+                      "error": null,
+                      "next_action": "Continue polling every 3 seconds until completion"
+                    }
+                  },
+                  "completed_job": {
+                    "summary": "Job completed successfully",
+                    "value": {
+                      "success": true,
+                      "job_id": "job_123e4567-e89b-12d3-a456-426614174000",
+                      "workflow_id": "wf_987fcdeb-51a2-43d1-b678-123456789abc",
+                      "operation": "upload_video",
+                      "status": "completed",
+                      "progress": 100,
+                      "message": "Video upload completed successfully",
+                      "created_at": "2024-01-15T10:30:00.000Z",
+                      "started_at": "2024-01-15T10:30:05.000Z",
+                      "completed_at": "2024-01-15T10:31:25.000Z",
+                      "estimated_completion": null,
+                      "result": {
+                        "video_url": "file://video_wf_987fcdeb_1705315885000.mp4",
+                        "reference_id": "video_wf_987fcdeb_1705315885000",
+                        "file_info": {
+                          "size": 209715200,
+                          "contentType": "video/mp4"
+                        }
+                      },
+                      "error": null,
+                      "next_action": "Proceed to extract audio using POST /extract-audio with workflow_id"
+                    }
+                  },
+                  "failed_job": {
+                    "summary": "Job failed with error",
+                    "value": {
+                      "success": true,
+                      "job_id": "job_123e4567-e89b-12d3-a456-426614174000",
+                      "workflow_id": "wf_987fcdeb-51a2-43d1-b678-123456789abc",
+                      "operation": "upload_video",
+                      "status": "failed",
+                      "progress": 45,
+                      "message": "Video upload failed: Network timeout",
+                      "created_at": "2024-01-15T10:30:00.000Z",
+                      "started_at": "2024-01-15T10:30:05.000Z",
+                      "completed_at": "2024-01-15T10:30:45.000Z",
+                      "estimated_completion": null,
+                      "result": null,
+                      "error": {
+                        "code": "NETWORK_TIMEOUT",
+                        "message": "Network timeout after 30 seconds",
+                        "retryable": true,
+                        "retry_after": 60
+                      },
+                      "next_action": "Retry upload after 60 seconds or try with a different source URL"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Job not found",
+                  "message": "No job found with ID: job_123e4567-e89b-12d3-a456-426614174000",
+                  "next_action": "Verify the job_id or check if the job has been cleaned up"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid job ID format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Invalid job ID format",
+                  "message": "Job ID must be in format: job_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+                  "next_action": "Provide a valid job_id returned from a job creation endpoint"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/jobs/{job_id}/cancel": {
+      "post": {
+        "summary": "Cancel a background job",
+        "description": "Attempts to cancel a running or queued background job.\n\nCancellation Behavior:\n- Queued jobs: Cancelled immediately without starting\n- Running jobs: Graceful cancellation with cleanup (may take a few seconds)\n- Completed/Failed/Cancelled jobs: Cannot be cancelled (returns error)\n\nWhat happens when cancelled:\n1. Job status changes to 'cancelled'\n2. Any ongoing downloads/processing stops gracefully\n3. Temporary files are cleaned up\n4. Workflow step is marked as failed with cancellation reason\n5. Agent should check job status to confirm cancellation\n\nUse Cases:\n- User changed requirements\n- Resource constraints detected\n- Higher priority task needs resources\n- Incorrect parameters detected",
+        "operationId": "cancelJob",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier for the background job to cancel",
+            "schema": {
+              "type": "string",
+              "pattern": "^job_[a-fA-F0-9-]{36}$",
+              "example": "job_123e4567-e89b-12d3-a456-426614174000"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Optional cancellation details",
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "description": "Optional reason for cancellation",
+                    "maxLength": 500,
+                    "example": "User requested different video source"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Job cancelled successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobCancellationResponse"
+                },
+                "examples": {
+                  "running_job_cancelled": {
+                    "summary": "Running job cancelled successfully",
+                    "value": {
+                      "success": true,
+                      "job_id": "job_123e4567-e89b-12d3-a456-426614174000",
+                      "workflow_id": "wf_987fcdeb-51a2-43d1-b678-123456789abc",
+                      "operation": "upload_video",
+                      "status": "cancelled",
+                      "cancelled_at": "2024-01-15T10:30:45.000Z",
+                      "cancel_reason": "User requested different video source",
+                      "progress_at_cancellation": 35,
+                      "cleanup_performed": true,
+                      "message": "Video upload job cancelled: User requested different video source",
+                      "next_action": "Start a new upload job with the corrected parameters"
+                    }
+                  },
+                  "queued_job_cancelled": {
+                    "summary": "Queued job cancelled successfully",
+                    "value": {
+                      "success": true,
+                      "job_id": "job_456e7890-e12b-34d5-a678-901234567def",
+                      "workflow_id": "wf_123fcdeb-51a2-43d1-b678-987654321cba",
+                      "operation": "transcribe_audio",
+                      "status": "cancelled",
+                      "cancelled_at": "2024-01-15T10:35:12.000Z",
+                      "cancel_reason": "Job cancelled by user",
+                      "progress_at_cancellation": 0,
+                      "cleanup_performed": true,
+                      "message": "Audio transcription job cancelled before execution started",
+                      "next_action": "Start a new transcription job with updated parameters if needed"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Job cannot be cancelled (wrong status)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "current_status": {
+                          "type": "string",
+                          "enum": ["completed", "failed", "cancelled"],
+                          "description": "Current job status that prevents cancellation"
+                        },
+                        "job_id": {
+                          "type": "string",
+                          "description": "The job ID that couldn't be cancelled"
+                        }
+                      },
+                      "required": ["current_status", "job_id"]
+                    }
+                  ]
+                },
+                "example": {
+                  "success": false,
+                  "error": "Job cannot be cancelled",
+                  "message": "Cannot cancel job with status 'completed'. Only 'queued' and 'running' jobs can be cancelled.",
+                  "current_status": "completed",
+                  "job_id": "job_123e4567-e89b-12d3-a456-426614174000",
+                  "next_action": "Check job status using GET /jobs/{job_id} to see final results"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Job not found",
+                  "message": "No job found with ID: job_123e4567-e89b-12d3-a456-426614174000",
+                  "next_action": "Verify the job_id or check if the job has been cleaned up"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid job ID format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Invalid job ID format",
+                  "message": "Job ID must be in format: job_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+                  "next_action": "Provide a valid job_id returned from a job creation endpoint"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    },
+    "schemas": {
+      "JobStatusResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Always true for successful API calls",
+            "example": true
+          },
+          "job_id": {
+            "type": "string",
+            "description": "The unique job identifier",
+            "example": "job_123e4567-e89b-12d3-a456-426614174000"
+          },
+          "workflow_id": {
+            "type": "string",
+            "description": "The workflow this job belongs to",
+            "example": "wf_987fcdeb-51a2-43d1-b678-123456789abc"
+          },
+          "operation": {
+            "type": "string",
+            "enum": ["upload_video", "extract_audio", "transcribe_audio", "enhance_transcription"],
+            "description": "The type of operation being performed",
+            "example": "upload_video"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["queued", "running", "completed", "failed", "cancelled"],
+            "description": "Current job status",
+            "example": "running"
+          },
+          "progress": {
+            "type": "integer",
+            "minimum": -1,
+            "maximum": 100,
+            "description": "Progress percentage (0-100), or -1 for indeterminate",
+            "example": 75
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable status message",
+            "example": "Downloaded 150MB of 200MB (75%)"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the job was created (ISO 8601)",
+            "example": "2024-01-15T10:30:00.000Z"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "When the job started running (ISO 8601)",
+            "example": "2024-01-15T10:30:05.000Z"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "When the job completed (ISO 8601)",
+            "example": null
+          },
+          "estimated_completion": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Estimated completion time (ISO 8601)",
+            "example": "2024-01-15T10:32:00.000Z"
+          },
+          "result": {
+            "type": "object",
+            "nullable": true,
+            "description": "Job results (only present when status is 'completed')",
+            "example": null
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Error code for programmatic handling",
+                "example": "DOWNLOAD_FAILED"
+              },
+              "message": {
+                "type": "string",
+                "description": "Human-readable error message",
+                "example": "Failed to download video: 404 Not Found"
+              },
+              "retryable": {
+                "type": "boolean",
+                "description": "Whether this error can be retried",
+                "example": true
+              },
+              "retry_after": {
+                "type": "integer",
+                "nullable": true,
+                "description": "Seconds to wait before retrying",
+                "example": 60
+              }
+            },
+            "description": "Error details (only present when status is 'failed')",
+            "example": null
+          },
+          "next_action": {
+            "type": "string",
+            "description": "Guidance for the next step agents should take",
+            "example": "Continue polling every 3 seconds until completion"
+          }
+        },
+        "required": [
+          "success",
+          "job_id", 
+          "workflow_id",
+          "operation",
+          "status",
+          "progress",
+          "message",
+          "created_at",
+          "next_action"
+        ]
+      },
+      "JobCancellationResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Always true for successful cancellation",
+            "example": true
+          },
+          "job_id": {
+            "type": "string",
+            "description": "The cancelled job identifier",
+            "example": "job_123e4567-e89b-12d3-a456-426614174000"
+          },
+          "workflow_id": {
+            "type": "string",
+            "description": "The workflow this job belonged to",
+            "example": "wf_987fcdeb-51a2-43d1-b678-123456789abc"
+          },
+          "operation": {
+            "type": "string",
+            "enum": ["upload_video", "extract_audio", "transcribe_audio", "enhance_transcription"],
+            "description": "The type of operation that was cancelled",
+            "example": "upload_video"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["cancelled"],
+            "description": "New job status (always 'cancelled')",
+            "example": "cancelled"
+          },
+          "cancelled_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the job was cancelled (ISO 8601)",
+            "example": "2024-01-15T10:30:45.000Z"
+          },
+          "cancel_reason": {
+            "type": "string",
+            "description": "Reason for cancellation",
+            "example": "User requested different video source"
+          },
+          "progress_at_cancellation": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Progress percentage when job was cancelled",
+            "example": 35
+          },
+          "cleanup_performed": {
+            "type": "boolean",
+            "description": "Whether cleanup of temporary resources was performed",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable cancellation message",
+            "example": "Video upload job cancelled: User requested different video source"
+          },
+          "next_action": {
+            "type": "string",
+            "description": "Guidance for what the agent should do next",
+            "example": "Start a new upload job with the corrected parameters or proceed with different workflow"
+          }
+        },
+        "required": [
+          "success",
+          "job_id",
+          "workflow_id", 
+          "operation",
+          "status",
+          "cancelled_at",
+          "cancel_reason",
+          "progress_at_cancellation",
+          "cleanup_performed",
+          "message",
+          "next_action"
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "string",
+            "description": "Error type or category"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error message"
+          },
+          "next_action": {
+            "type": "string",
+            "description": "Guidance for what the agent should do next"
+          }
+        },
+        "required": ["success", "error", "message", "next_action"]
+      }
+    }
+  }
+}

@@ -19,6 +19,7 @@ export {
 export {
   ServiceManager,
   AgentStateStore,
+  JobStateStore,
   ReferenceService,
   UploadVideoService,
   ExtractAudioService,
@@ -39,6 +40,11 @@ export {
 export type {
   AgentState,
   LegacyAgentState,
+  JobState,
+  JobStatus,
+  JobOperation,
+  JobError,
+  JobProgressUpdate,
   FileReference,
   StepStatus,
   StepError,

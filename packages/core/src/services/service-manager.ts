@@ -8,6 +8,7 @@ import { ExtractAudioService } from './extract-audio-service';
 import { TranscribeAudioService } from './transcribe-audio-service';
 import { WorkflowCleanupService } from './workflow-cleanup';
 import { AgentStateStore } from './agent-state-store';
+import { JobStateStore } from './job-state-store';
 import { ReferenceService } from './reference-service';
 import { AudioExtractorService } from './audio-extractor';
 import { GPTEnhancementService } from './gpt-enhancement-service';
@@ -28,6 +29,7 @@ export class ServiceManager {
   private transcribeAudioService?: TranscribeAudioService;
   private workflowCleanupService?: WorkflowCleanupService;
   private agentStateStore?: AgentStateStore;
+  private jobStateStore?: JobStateStore;
   private referenceService?: ReferenceService;
   private audioExtractorService?: AudioExtractorService;
   private gptEnhancementService?: GPTEnhancementService;
@@ -88,6 +90,13 @@ export class ServiceManager {
       this.agentStateStore = new AgentStateStore('./temp');
     }
     return this.agentStateStore;
+  }
+
+  public getJobStateStore(): JobStateStore {
+    if (!this.jobStateStore) {
+      this.jobStateStore = new JobStateStore();
+    }
+    return this.jobStateStore;
   }
 
   public getReferenceService(): ReferenceService {

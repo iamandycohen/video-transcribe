@@ -221,12 +221,13 @@ export class ReferenceService {
   async storeFromUrlWithProgress(
     sourceUrl: string, 
     workflow_id: string,
-    onProgress?: (downloaded: number, total: number, percentage: number) => void
+    onProgress?: (downloaded: number, total: number, percentage: number) => void,
+    cancellationToken?: AbortSignal
   ): Promise<string> {
     try {
       logger.info(`Downloading file from URL: ${sourceUrl}`);
       
-      const response = await fetch(sourceUrl);
+      const response = await fetch(sourceUrl, { signal: cancellationToken });
       if (!response.ok) {
         throw new Error(`Failed to download: ${response.status} ${response.statusText}`);
       }
@@ -244,6 +245,12 @@ export class ReferenceService {
       let downloaded = 0;
       
       while (true) {
+        // Check for cancellation
+        if (cancellationToken?.aborted) {
+          reader.cancel();
+          throw new Error('Download cancelled by user');
+        }
+        
         const { done, value } = await reader.read();
         
         if (done) break;
