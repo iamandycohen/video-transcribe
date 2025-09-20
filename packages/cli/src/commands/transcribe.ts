@@ -7,7 +7,7 @@ import { Command } from 'commander';
 import { ServiceManager, logger, azureConfig } from '@video-transcribe/core';
 import { TranscribeOptions, WorkflowContext, CommandHandler } from '../types';
 import { WorkflowExecutor } from '../workflow/workflow-executor';
-import { createOutputFormatter } from '../output/output-formatter';
+import { createOutputFormatter } from '../output';
 import fs from 'fs';
 import path from 'path';
 
