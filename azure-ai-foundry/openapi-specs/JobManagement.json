@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "http://localhost:3000",
+      "url": "https://video-transcribe-api.calmocean-ce622c12.eastus2.azurecontainerapps.io",
       "description": "Local development server"
     }
   ],
